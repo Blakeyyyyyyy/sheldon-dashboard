@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sheldon — AI Factory Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface-2: #1a1a25;
+    --border: #2a2a3a;
+    --text: #e0e0e8;
+    --text-dim: #7a7a8a;
+    --accent: #6366f1;
+    --accent-glow: rgba(99, 102, 241, 0.15);
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --orange: #f97316;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+
+  .status-dot.active { background: var(--green); }
+  .status-dot.idle { background: var(--text-dim); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* --- Metrics Row --- */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .metric-value {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .metric-value.green { color: var(--green); }
+  .metric-value.yellow { color: var(--yellow); }
+  .metric-value.red { color: var(--red); }
+  .metric-value.accent { color: var(--accent); }
+
+  /* --- Main Grid --- */
+  .grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+  }
+
+  /* --- Section --- */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+  }
+
+  .badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .badge.green { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+  .badge.yellow { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+  .badge.red { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+  .badge.accent { background: var(--accent-glow); color: var(--accent); }
+
+  /* --- Project Card --- */
+  .project-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .project-card:hover { border-color: var(--accent); }
+
+  .project-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .project-name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .project-phase {
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    background: var(--accent-glow);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .project-phase.build { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+  .project-phase.review { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
+  .project-phase.deploy { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+  .project-phase.flagged { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+  /* Progress Bar */
+  .progress-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), #818cf8);
+    transition: width 0.5s ease;
+  }
+
+  .project-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .score {
+    font-weight: 600;
+  }
+
+  .score.high { color: var(--green); }
+  .score.mid { color: var(--yellow); }
+  .score.low { color: var(--red); }
+
+  /* --- Idea Card --- */
+  .idea-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .idea-card:hover { border-color: var(--accent); }
+
+  .idea-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .idea-name { font-size: 14px; font-weight: 600; }
+
+  .idea-score {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .idea-tagline {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .idea-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* --- Activity Feed --- */
+  .feed-item {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .feed-item:last-child { border-bottom: none; }
+
+  .feed-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .feed-text { line-height: 1.4; }
+
+  /* --- Flags --- */
+  .flag-item {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+
+  .flag-item.warning {
+    background: rgba(234, 179, 8, 0.08);
+    border-color: rgba(234, 179, 8, 0.2);
+  }
+
+  /* --- Empty State --- */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  /* --- Refresh --- */
+  .refresh-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.2s;
+  }
+
+  .refresh-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
+
+  /* Leads Grid */
+  .leads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .lead-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .lead-handle { font-weight: 600; color: var(--accent); font-size: 13px; margin-bottom: 4px; }
+  .lead-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; }
+  .lead-followers { color: var(--text-dim); }
+  .lead-bio { font-size: 11px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>Sheldon</span> — AI Factory</h1>
+  <div class="header-meta">
+    <span><span class="status-dot active" id="statusDot"></span> <span id="statusText">Running</span></span>
+    <span id="lastUpdate">Last update: --</span>
+    <button class="refresh-btn" onclick="loadData()">Refresh</button>
+  </div>
+</div>
+
+<div class="metrics">
+  <div class="metric-card">
+    <div class="metric-value accent" id="metricBuilding">0</div>
+    <div class="metric-label">Building</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value green" id="metricShipped">0</div>
+    <div class="metric-label">Shipped</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value" id="metricQueued">0</div>
+    <div class="metric-label">Ideas Queued</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value red" id="metricFlags">0</div>
+    <div class="metric-label">Needs Attention</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="left">
+    <!-- Active Projects -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Active Projects</span>
+        <span class="badge accent" id="activeCount">0 / 3</span>
+      </div>
+      <div id="projectsList">
+        <div class="empty">No active projects. Approve an idea to get started.</div>
+      </div>
+    </div>
+
+    <!-- Idea Queue -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Idea Queue</span>
+        <span class="badge green" id="ideaCount">0</span>
+      </div>
+      <div id="ideasList">
+        <div class="empty">Monday research hasn't run yet. Ideas will appear here.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right">
+    <!-- Flags -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Needs Attention</span>
+      </div>
+      <div id="flagsList">
+        <div class="empty" style="padding: 20px;">All clear</div>
+      </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Activity Feed</span>
+      </div>
+      <div id="activityFeed">
+        <div class="empty" style="padding: 20px;">No activity yet</div>
+      </div>
+    </div>
+
+    <!-- X Leads -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">📋 X Creator Leads</span>
+      </div>
+      <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 12px; padding: 0 16px;">TikTok editors & creators for distribution</p>
+      <div class="leads-grid" id="leadsList" style="padding: 0 16px 16px;">
+        <div class="empty" style="padding: 20px;">No leads yet — run clipper finder agent</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Dashboard Data Loading
+// ============================================================================
+// This dashboard reads state files from the factory's state/ directory.
+// In production, a small Python/Node server serves the JSON files.
+// For now, it works with the demo data below.
+//
+// To connect to live data:
+// 1. Run: python3 -m http.server 8080 --directory ~/.openclaw/workspace/state
+// 2. Update BACKEND_URL below
+// ============================================================================
+
+const BACKEND_URL = 'http://localhost:8080';
+const DEMO_MODE = true; // Set to false when backend server is running
+
+// Phase progress percentages
+const PHASE_PROGRESS = {
+  'ideation': 10,
+  'validation': 20,
+  'build': 45,
+  'review': 65,
+  'monetize': 75,
+  'deploy': 90,
+  'submit': 95,
+  'completed': 100
+};
+
+// Phase display classes
+const PHASE_CLASS = {
+  'build': 'build',
+  'review': 'review',
+  'deploy': 'deploy',
+  'monetize': 'build',
+  'submit': 'deploy',
+  'flagged': 'flagged'
+};
+
+// --- Demo Data ---
+const DEMO_PROJECTS = [
+  {
+    slug: 'glow-ai',
+    name: 'Glow AI',
+    phase: 'completed',
+    phase_status: 'shipped',
+    last_updated: new Date().toISOString(),
+    scores: { validation: 9.0, review: 9.2 },
+    notes: 'Live on App Store'
+  },
+  {
+    slug: 'dance-ai',
+    name: 'Groove AI (Dance)',
+    phase: 'ideation',
+    phase_status: 'brief_ready',
+    last_updated: new Date().toISOString(),
+    scores: { validation: 9.5, review: null },
+    notes: 'Full brief ready. Waiting for build approval.'
+  }
+];
+
+const DEMO_IDEAS = [
+  {
+    name: 'Groove AI — Dance Video App',
+    slug: 'dance-ai',
+    tagline: 'Photo → AI dancing video. Competitor: DeePix ($258k MRR).',
+    cal_ai_score: 10,
+    validation_score: 9.5,
+    verdict: 'BUILD',
+    category: 'Photo & Video',
+    build_estimate: '2-3 weeks',
+    approved: false,
+    is_featured: true,
+    full_brief: `
+      <h3>🎬 DANCE AI — FULL BUILD BRIEF</h3>
+      <h4>API Stack</h4>
+      <ul>
+        <li><strong>Primary:</strong> Kling 2.6 Pro via fal.ai ($0.28/5sec)</li>
+        <li><strong>Face Fidelity:</strong> SteadyDancer ($0.20/5sec)</li>
+        <li><strong>Templates:</strong> 5,000+ built into Kling API</li>
+      </ul>
+      <h4>App Name</h4>
+      <p><strong>Groove AI</strong> — AI Dance Video Maker (available on App Store)</p>
+      <h4>Monetization</h4>
+      <ul>
+        <li>Free generations: 3</li>
+        <li>Main: $99.99/year (show $1.92/week)</li>
+        <li>Exit popup: $9.99/week</li>
+      </ul>
+      <h4>Key Decisions</h4>
+      <ul>
+        <li>Template-first onboarding</li>
+        <li>Rating prompt after first result</li>
+        <li>Creator program: $1.50/1k views</li>
+        <li>Baby/Pet wedge (vs DeePix general)</li>
+      </ul>
+      <h4>Tech Stack</h4>
+      <p>SwiftUI + Node.js backend + Kling API + S3 + RevenueCat + Superwall</p>
+      <h4>Launch Templates</h4>
+      <p>20-30 curated dances, expand weekly based on TikTok trends</p>
+      <h4>Creator Program</h4>
+      <ul>
+        <li>Week 1: 20 creators</li>
+        <li>Week 4: 75-100 creators</li>
+        <li>Platforms: TikTok DMs, Discord, Reddit, Fiverr</li>
+      </ul>
+    `
+  },
+  {
+    name: 'AI Dating Profile Coach',
+    slug: 'ai-dating-coach',
+    tagline: 'Upload your dating profile. AI tells you exactly what to fix.',
+    cal_ai_score: 6,
+    validation_score: 9.2,
+    verdict: 'BUILD',
+    category: 'Lifestyle / Dating',
+    build_estimate: '2 weeks',
+    approved: false
+  },
+  {
+    name: 'AI Body Progress Tracker',
+    slug: 'ai-body-tracker',
+    tagline: 'Photo-based body transformation tracking. No scale needed.',
+    cal_ai_score: 6,
+    validation_score: 8.8,
+    verdict: 'BUILD',
+    category: 'Health & Fitness',
+    build_estimate: '3 weeks',
+    approved: false
+  },
+  {
+    name: 'AI Fridge Meal Planner',
+    slug: 'ai-fridge-meals',
+    tagline: 'Photo your fridge. Get meals from what you already have.',
+    cal_ai_score: 5,
+    validation_score: 8.1,
+    verdict: 'BUILD',
+    category: 'Food & Drink',
+    build_estimate: '3 weeks',
+    approved: false
+  }
+];
+
+const DEMO_FLAGS = [
+  {
+    type: 'warning',
+    text: '⚠️ KIE.AI: Motion control API still down. Support message sent. Waiting on response.'
+  },
+  {
+    type: 'warning',
+    text: '📋 X LEADS: New leads section added at bottom. Check for updated creator leads.'
+  }
+];
+
+const DEMO_LEADS = [
+  { handle: '@dimaerzak', score: 8, followers: 228, bio: 'Retention first. Editor for Creators. DM Open' },
+  { handle: '@PostandVibe', score: 7, followers: 2590, bio: 'Best realistic AI creator in Nigeria' },
+  { handle: '@CreatingwithChi', score: 7, followers: 618, bio: 'Building brands, helping hands' },
+  { handle: '@sumfattytuna', score: 7, followers: 12260, bio: 'Large following, content creator' },
+  { handle: '@Workwithay26372', score: 6, followers: 0, bio: 'Freelance Video Editor - YouTube/Reels/Shorts/Ads' },
+  { handle: '@kaio_editor', score: 6, followers: 62, bio: 'Portfolio link, USA' },
+  { handle: '@micarli8', score: 6, followers: 185, bio: 'UGC creator, portfolio link' }
+];
+
+const DEMO_ACTIVITY = [
+  { time: '08:00', text: 'Factory loop started. 1 active project.' },
+  { time: '07:02', text: 'Monday research completed. 3 ideas added to queue.' },
+  { time: '07:00', text: 'Research agent spawned (Grok). Scanning markets...' }
+];
+
+// --- Render Functions ---
+
+function renderProject(project) {
+  const progress = PHASE_PROGRESS[project.phase] || 0;
+  const phaseClass = PHASE_CLASS[project.phase] || 'build';
+  const score = project.scores?.review;
+  const scoreClass = score >= 8 ? 'high' : score >= 6 ? 'mid' : score ? 'low' : '';
+  const scoreText = score ? `${score}/10` : '--';
+  const updated = project.last_updated ? new Date(project.last_updated).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '--';
+
+  return `
+    <div class="project-card">
+      <div class="project-top">
+        <span class="project-name">${project.name}</span>
+        <span class="project-phase ${phaseClass}">${project.phase.toUpperCase()}</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width: ${progress}%"></div>
+      </div>
+      <div class="project-meta">
+        <span>Updated: ${updated}</span>
+        <span>Quality: <span class="score ${scoreClass}">${scoreText}</span></span>
+        <span>${project.phase_status || 'pending'}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderIdea(idea) {
+  const scoreColor = idea.validation_score >= 8 ? 'green' : idea.validation_score >= 6 ? 'yellow' : 'red';
+  const featured = idea.is_featured ? '<span class="badge accent" style="margin-left:8px;">⭐ FEATURED</span>' : '';
+  const brief = idea.full_brief || '';
+  return `
+    <div class="idea-card" onclick="${idea.full_brief ? `showBrief('${idea.slug}')` : ''}" ${idea.full_brief ? 'style="cursor:pointer"' : ''}>
+      <div class="idea-top">
+        <span class="idea-name">${idea.name}</span>
+        <span class="idea-score badge ${scoreColor}">${idea.validation_score}/10</span>
+      </div>
+      <div class="idea-tagline">${idea.tagline}</div>
+      <div class="idea-meta">
+        <span>Cal AI: ${idea.cal_ai_score}/6</span>
+        <span>${idea.category}</span>
+        <span>${idea.build_estimate}</span>
+        <span class="badge ${idea.approved ? 'green' : 'accent'}">${idea.approved ? 'APPROVED' : idea.verdict}</span>
+        ${featured}
+      </div>
+    </div>
+    <div id="brief-${idea.slug}" class="idea-brief" style="display:none;">
+      ${brief}
+    </div>
+  `;
+}
+
+function showBrief(slug) {
+  const brief = document.getElementById('brief-' + slug);
+  if (brief) {
+    brief.style.display = brief.style.display === 'none' ? 'block' : 'none';
+  }
+}
+
+// Add modal styles and function
+const modalStyles = `
+  .idea-brief {
+    background: var(--surface-2);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: -8px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .idea-brief h3 { color: var(--accent); margin-bottom: 12px; font-size: 16px; }
+  .idea-brief h4 { color: var(--text); margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .idea-brief ul { margin-left: 20px; margin-bottom: 8px; }
+  .idea-brief li { margin-bottom: 4px; color: var(--text-dim); }
+  .idea-brief p { color: var(--text-dim); margin-bottom: 8px; }
+`;
+
+// Inject modal styles
+const styleEl = document.createElement('style');
+styleEl.textContent = modalStyles;
+document.head.appendChild(styleEl);
+
+function renderFlag(flag) {
+  const cls = flag.type === 'critical' ? '' : 'warning';
+  return `<div class="flag-item ${cls}">${flag.text}</div>`;
+}
+
+function renderActivity(item) {
+  return `
+    <div class="feed-item">
+      <div class="feed-time">${item.time}</div>
+      <div class="feed-text">${item.text}</div>
+    </div>
+  `;
+}
+
+function renderLead(lead) {
+  const scoreColor = lead.score >= 7 ? 'green' : lead.score >= 6 ? 'yellow' : 'red';
+  return `
+    <div class="lead-card">
+      <div class="lead-handle">${lead.handle}</div>
+      <div class="lead-meta">
+        <span class="lead-score badge ${scoreColor}">${lead.score}/10</span>
+        <span class="lead-followers">${lead.followers} followers</span>
+      </div>
+      <div class="lead-bio">${lead.bio}</div>
+    </div>
+  `;
+}
+
+// --- Load & Render ---
+
+async function loadData() {
+  let projects, ideas, flags, activity;
+
+  if (DEMO_MODE) {
+    projects = DEMO_PROJECTS;
+    ideas = DEMO_IDEAS;
+    flags = DEMO_FLAGS;
+    activity = DEMO_ACTIVITY;
+  } else {
+    try {
+      const [projRes, ideasRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/active/`).then(r => r.json()).catch(() => []),
+        fetch(`${BACKEND_URL}/ideas/`).then(r => r.json()).catch(() => [])
+      ]);
+      projects = projRes;
+      ideas = ideasRes;
+      flags = [];
+      activity = [];
+    } catch (e) {
+      console.error('Failed to load data:', e);
+      return;
+    }
+  }
+
+  // Update metrics
+  const building = projects.filter(p => ['build', 'review', 'monetize', 'deploy'].includes(p.phase)).length;
+  const shipped = projects.filter(p => p.phase === 'completed').length;
+  const flagCount = flags.length + projects.filter(p => p.phase === 'flagged').length;
+
+  document.getElementById('metricBuilding').textContent = building;
+  document.getElementById('metricShipped').textContent = shipped;
+  document.getElementById('metricQueued').textContent = ideas.filter(i => !i.approved).length;
+  document.getElementById('metricFlags').textContent = flagCount;
+  document.getElementById('activeCount').textContent = `${projects.length} / 3`;
+  document.getElementById('ideaCount').textContent = ideas.length;
+
+  // Render projects
+  const projectsEl = document.getElementById('projectsList');
+  if (projects.length > 0) {
+    projectsEl.innerHTML = projects.map(renderProject).join('');
+  } else {
+    projectsEl.innerHTML = '<div class="empty">No active projects. Approve an idea to get started.</div>';
+  }
+
+  // Render ideas
+  const ideasEl = document.getElementById('ideasList');
+  if (ideas.length > 0) {
+    ideasEl.innerHTML = ideas.map(renderIdea).join('');
+  } else {
+    ideasEl.innerHTML = '<div class="empty">Monday research hasn\'t run yet.</div>';
+  }
+
+  // Render flags
+  const flagsEl = document.getElementById('flagsList');
+  if (flags.length > 0) {
+    flagsEl.innerHTML = flags.map(renderFlag).join('');
+  } else {
+    flagsEl.innerHTML = '<div class="empty" style="padding: 20px;">All clear</div>';
+  }
+
+  // Render activity
+  const feedEl = document.getElementById('activityFeed');
+  if (activity.length > 0) {
+    feedEl.innerHTML = activity.map(renderActivity).join('');
+  }
+
+  // Render leads
+  const leadsEl = document.getElementById('leadsList');
+  if (DEMO_LEADS && DEMO_LEADS.length > 0) {
+    leadsEl.innerHTML = DEMO_LEADS.map(renderLead).join('');
+  }
+
+  // Update timestamp
+  document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+}
+
+// Auto-refresh every 30 seconds
+loadData();
+setInterval(loadData, 30000);
+</script>
+
+</body>
+</html>
