@@ -312,14 +312,6 @@
   }
 
   .refresh-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
-
-  /* Leads Grid */
-  .leads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-  .lead-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
-  .lead-handle { font-weight: 600; color: var(--accent); font-size: 13px; margin-bottom: 4px; }
-  .lead-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; }
-  .lead-followers { color: var(--text-dim); }
-  .lead-bio { font-size: 11px; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -397,17 +389,6 @@
         <div class="empty" style="padding: 20px;">No activity yet</div>
       </div>
     </div>
-
-    <!-- X Leads -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">📋 X Creator Leads</span>
-      </div>
-      <p style="color: var(--text-dim); font-size: 13px; margin-bottom: 12px; padding: 0 16px;">TikTok editors & creators for distribution</p>
-      <div class="leads-grid" id="leadsList" style="padding: 0 16px 16px;">
-        <div class="empty" style="padding: 20px;">No leads yet — run clipper finder agent</div>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -425,7 +406,7 @@
 // ============================================================================
 
 const BACKEND_URL = 'http://localhost:8080';
-const DEMO_MODE = true; // Using demo data - Sheldon updates this when working
+const DEMO_MODE = true; // Set to false when backend server is running
 
 // Phase progress percentages
 const PHASE_PROGRESS = {
@@ -452,72 +433,17 @@ const PHASE_CLASS = {
 // --- Demo Data ---
 const DEMO_PROJECTS = [
   {
-    slug: 'glow-ai',
-    name: 'Glow AI',
-    phase: 'completed',
-    phase_status: 'shipped',
-    last_updated: new Date().toISOString(),
-    scores: { validation: 9.0, review: 9.2 },
-    notes: 'Live on App Store'
-  },
-  {
     slug: 'dance-ai',
-    name: 'Groove AI (Dance)',
-    phase: 'ideation',
-    phase_status: 'brief_ready',
+    name: 'Dance AI',
+    phase: 'build',
+    phase_status: 'in_progress',
     last_updated: new Date().toISOString(),
-    scores: { validation: 9.5, review: null },
-    notes: 'Full brief ready. Waiting for build approval.'
+    scores: { validation: 9.2, review: null },
+    notes: 'Builder agent working on core video processing'
   }
 ];
 
 const DEMO_IDEAS = [
-  {
-    name: 'Groove AI — Dance Video App',
-    slug: 'dance-ai',
-    tagline: 'Photo → AI dancing video. Competitor: DeePix ($258k MRR).',
-    cal_ai_score: 10,
-    validation_score: 9.5,
-    verdict: 'BUILD',
-    category: 'Photo & Video',
-    build_estimate: '2-3 weeks',
-    approved: false,
-    is_featured: true,
-    full_brief: `
-      <h3>🎬 DANCE AI — FULL BUILD BRIEF</h3>
-      <h4>API Stack</h4>
-      <ul>
-        <li><strong>Primary:</strong> Kling 2.6 Pro via fal.ai ($0.28/5sec)</li>
-        <li><strong>Face Fidelity:</strong> SteadyDancer ($0.20/5sec)</li>
-        <li><strong>Templates:</strong> 5,000+ built into Kling API</li>
-      </ul>
-      <h4>App Name</h4>
-      <p><strong>Groove AI</strong> — AI Dance Video Maker (available on App Store)</p>
-      <h4>Monetization</h4>
-      <ul>
-        <li>Free generations: 3</li>
-        <li>Main: $99.99/year (show $1.92/week)</li>
-        <li>Exit popup: $9.99/week</li>
-      </ul>
-      <h4>Key Decisions</h4>
-      <ul>
-        <li>Template-first onboarding</li>
-        <li>Rating prompt after first result</li>
-        <li>Creator program: $1.50/1k views</li>
-        <li>Baby/Pet wedge (vs DeePix general)</li>
-      </ul>
-      <h4>Tech Stack</h4>
-      <p>SwiftUI + Node.js backend + Kling API + S3 + RevenueCat + Superwall</p>
-      <h4>Launch Templates</h4>
-      <p>20-30 curated dances, expand weekly based on TikTok trends</p>
-      <h4>Creator Program</h4>
-      <ul>
-        <li>Week 1: 20 creators</li>
-        <li>Week 4: 75-100 creators</li>
-        <li>Platforms: TikTok DMs, Discord, Reddit, Fiverr</li>
-      </ul>
-    `
-  },
   {
     name: 'AI Dating Profile Coach',
     slug: 'ai-dating-coach',
@@ -553,38 +479,7 @@ const DEMO_IDEAS = [
   }
 ];
 
-const DEMO_FLAGS = [
-  {
-    type: 'warning',
-    text: '⚠️ KIE.AI: Motion control API still down. Support message sent. Trying alternative providers.'
-  },
-  {
-    type: 'info',
-    text: '🎬 DANCE AI: Research complete. Waiting on API fix before build.'
-  },
-  {
-    type: 'info',
-    text: '📋 X LEADS: 7 new creator leads added. Check bottom section.'
-  }
-];
-
-const DEMO_LEADS = [
-  // Batch 2 (latest)
-  { handle: '@AissamEdits', score: 8, followers: '175+ clients', bio: 'Video editor, worked with 175+ clients, DM open' },
-  { handle: '@Novavfxs', score: 8, followers: 'notable accounts', bio: 'Growth-focused, worked with notable accounts' },
-  { handle: '@HadgedVFX', score: 7, followers: 'VFX specialist', bio: 'VFX/motion graphics, commissions open' },
-  { handle: '@Kamil_AFrames', score: 7, followers: '3 yrs exp', bio: 'Video editor + social media manager, 3 yrs exp' },
-  { handle: '@maciekvfx', score: 7, followers: 'strategic', bio: 'Strategic video editor, available' },
-  { handle: '@setheditss', score: 7, followers: 'million-dollar brands', bio: 'Worked with million-dollar brands' },
-  { handle: '@Kartik_ez', score: 7, followers: 'After Effects/Blender', bio: 'After Effects/Blender, limited spots' },
-  { handle: '@Rimey_', score: 6, followers: 'portfolio', bio: 'Freelance video editor, portfolio link' },
-  { handle: '@tsuy_o', score: 6, followers: 'portfolio', bio: 'Freelance video editor, DM open, portfolio' },
-  { handle: '@riiotxv', score: 6, followers: 'freelance', bio: 'Freelance visual storyteller, open for work' },
-  // Previous batch (keepers)
-  { handle: '@kaio_editor', score: 6, followers: 62, bio: 'Video Editor USA, portfolio link' },
-  { handle: '@dimaerzak', score: 6, followers: 228, bio: 'Editor for Creators, DM Open' },
-  { handle: '@micarli8', score: 5, followers: 185, bio: 'UGC creator, portfolio link' }
-];
+const DEMO_FLAGS = [];
 
 const DEMO_ACTIVITY = [
   { time: '08:00', text: 'Factory loop started. 1 active project.' },
@@ -622,10 +517,8 @@ function renderProject(project) {
 
 function renderIdea(idea) {
   const scoreColor = idea.validation_score >= 8 ? 'green' : idea.validation_score >= 6 ? 'yellow' : 'red';
-  const featured = idea.is_featured ? '<span class="badge accent" style="margin-left:8px;">⭐ FEATURED</span>' : '';
-  const brief = idea.full_brief || '';
   return `
-    <div class="idea-card" onclick="${idea.full_brief ? `showBrief('${idea.slug}')` : ''}" ${idea.full_brief ? 'style="cursor:pointer"' : ''}>
+    <div class="idea-card">
       <div class="idea-top">
         <span class="idea-name">${idea.name}</span>
         <span class="idea-score badge ${scoreColor}">${idea.validation_score}/10</span>
@@ -636,45 +529,10 @@ function renderIdea(idea) {
         <span>${idea.category}</span>
         <span>${idea.build_estimate}</span>
         <span class="badge ${idea.approved ? 'green' : 'accent'}">${idea.approved ? 'APPROVED' : idea.verdict}</span>
-        ${featured}
       </div>
-    </div>
-    <div id="brief-${idea.slug}" class="idea-brief" style="display:none;">
-      ${brief}
     </div>
   `;
 }
-
-function showBrief(slug) {
-  const brief = document.getElementById('brief-' + slug);
-  if (brief) {
-    brief.style.display = brief.style.display === 'none' ? 'block' : 'none';
-  }
-}
-
-// Add modal styles and function
-const modalStyles = `
-  .idea-brief {
-    background: var(--surface-2);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 16px;
-    margin-top: -8px;
-    margin-bottom: 12px;
-    font-size: 13px;
-    line-height: 1.5;
-  }
-  .idea-brief h3 { color: var(--accent); margin-bottom: 12px; font-size: 16px; }
-  .idea-brief h4 { color: var(--text); margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .idea-brief ul { margin-left: 20px; margin-bottom: 8px; }
-  .idea-brief li { margin-bottom: 4px; color: var(--text-dim); }
-  .idea-brief p { color: var(--text-dim); margin-bottom: 8px; }
-`;
-
-// Inject modal styles
-const styleEl = document.createElement('style');
-styleEl.textContent = modalStyles;
-document.head.appendChild(styleEl);
 
 function renderFlag(flag) {
   const cls = flag.type === 'critical' ? '' : 'warning';
@@ -686,20 +544,6 @@ function renderActivity(item) {
     <div class="feed-item">
       <div class="feed-time">${item.time}</div>
       <div class="feed-text">${item.text}</div>
-    </div>
-  `;
-}
-
-function renderLead(lead) {
-  const scoreColor = lead.score >= 7 ? 'green' : lead.score >= 6 ? 'yellow' : 'red';
-  return `
-    <div class="lead-card">
-      <div class="lead-handle">${lead.handle}</div>
-      <div class="lead-meta">
-        <span class="lead-score badge ${scoreColor}">${lead.score}/10</span>
-        <span class="lead-followers">${lead.followers} followers</span>
-      </div>
-      <div class="lead-bio">${lead.bio}</div>
     </div>
   `;
 }
@@ -770,12 +614,6 @@ async function loadData() {
   const feedEl = document.getElementById('activityFeed');
   if (activity.length > 0) {
     feedEl.innerHTML = activity.map(renderActivity).join('');
-  }
-
-  // Render leads
-  const leadsEl = document.getElementById('leadsList');
-  if (DEMO_LEADS && DEMO_LEADS.length > 0) {
-    leadsEl.innerHTML = DEMO_LEADS.map(renderLead).join('');
   }
 
   // Update timestamp
