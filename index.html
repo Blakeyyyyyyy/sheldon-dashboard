@@ -4,626 +4,276 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sheldon — AI Factory Dashboard</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface-2: #1a1a25;
-    --border: #2a2a3a;
-    --text: #e0e0e8;
-    --text-dim: #7a7a8a;
-    --accent: #6366f1;
-    --accent-glow: rgba(99, 102, 241, 0.15);
-    --green: #22c55e;
-    --yellow: #eab308;
-    --red: #ef4444;
-    --orange: #f97316;
+    --bg: #0a0a0f; --surface: #12121a; --surface-2: #1a1a25; --surface-3: #222233;
+    --border: #2a2a3a; --text: #e0e0e8; --text-dim: #7a7a8a;
+    --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15);
+    --green: #22c55e; --yellow: #eab308; --red: #ef4444; --orange: #f97316; --cyan: #06b6d4;
   }
-
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 24px;
-  }
-
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 32px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .header h1 {
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-  }
-
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
   .header h1 span { color: var(--accent); }
-
-  .header-meta {
-    display: flex;
-    gap: 24px;
-    font-size: 13px;
-    color: var(--text-dim);
-  }
-
-  .status-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
-
+  .header-meta { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--text-dim); }
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; animation: pulse 2s infinite; }
   .status-dot.active { background: var(--green); }
-  .status-dot.idle { background: var(--text-dim); }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  /* --- Metrics Row --- */
-  .metrics {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
-  }
-
-  .metric-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-  }
-
-  .metric-value {
-    font-size: 36px;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-
-  .metric-label {
-    font-size: 12px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-  }
-
-  .metric-value.green { color: var(--green); }
-  .metric-value.yellow { color: var(--yellow); }
-  .metric-value.red { color: var(--red); }
-  .metric-value.accent { color: var(--accent); }
-
-  /* --- Main Grid --- */
-  .grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 24px;
-  }
-
-  /* --- Section --- */
-  .section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-dim);
-  }
-
-  .badge {
-    font-size: 11px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-weight: 600;
-  }
-
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border-radius: 10px; padding: 4px; border: 1px solid var(--border); width: fit-content; }
+  .tab { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-dim); transition: all 0.2s; border: none; background: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--accent); color: white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .metric-value { font-size: 36px; font-weight: 700; margin-bottom: 4px; }
+  .metric-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .metric-value.green { color: var(--green); } .metric-value.yellow { color: var(--yellow); }
+  .metric-value.red { color: var(--red); } .metric-value.accent { color: var(--accent); } .metric-value.cyan { color: var(--cyan); }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
   .badge.green { background: rgba(34, 197, 94, 0.15); color: var(--green); }
   .badge.yellow { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
   .badge.red { background: rgba(239, 68, 68, 0.15); color: var(--red); }
   .badge.accent { background: var(--accent-glow); color: var(--accent); }
-
-  /* --- Project Card --- */
-  .project-card {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 12px;
-    transition: border-color 0.2s;
-  }
-
+  .badge.cyan { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
+  .project-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; transition: border-color 0.2s; }
   .project-card:hover { border-color: var(--accent); }
-
-  .project-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-  }
-
-  .project-name {
-    font-size: 16px;
-    font-weight: 600;
-  }
-
-  .project-phase {
-    font-size: 12px;
-    padding: 2px 10px;
-    border-radius: 6px;
-    background: var(--accent-glow);
-    color: var(--accent);
-    font-weight: 500;
-  }
-
+  .project-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .project-name { font-size: 16px; font-weight: 600; }
+  .project-phase { font-size: 12px; padding: 2px 10px; border-radius: 6px; font-weight: 500; }
   .project-phase.build { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
+  .project-phase.testing { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
   .project-phase.review { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
   .project-phase.deploy { background: rgba(34, 197, 94, 0.15); color: var(--green); }
   .project-phase.flagged { background: rgba(239, 68, 68, 0.15); color: var(--red); }
-
-  /* Progress Bar */
-  .progress-bar {
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    margin-bottom: 10px;
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: linear-gradient(90deg, var(--accent), #818cf8);
-    transition: width 0.5s ease;
-  }
-
-  .project-meta {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .score {
-    font-weight: 600;
-  }
-
-  .score.high { color: var(--green); }
-  .score.mid { color: var(--yellow); }
-  .score.low { color: var(--red); }
-
-  /* --- Idea Card --- */
-  .idea-card {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-  }
-
+  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), #818cf8); transition: width 0.5s ease; }
+  .project-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
+  .score { font-weight: 600; } .score.high { color: var(--green); } .score.mid { color: var(--yellow); } .score.low { color: var(--red); }
+  .idea-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
   .idea-card:hover { border-color: var(--accent); }
-
-  .idea-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-  }
-
+  .idea-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .idea-name { font-size: 14px; font-weight: 600; }
-
-  .idea-score {
-    font-size: 12px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-
-  .idea-tagline {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-bottom: 8px;
-  }
-
-  .idea-meta {
-    display: flex;
-    gap: 12px;
-    font-size: 11px;
-    color: var(--text-dim);
-  }
-
-  /* --- Activity Feed --- */
-  .feed-item {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-
+  .idea-tagline { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+  .idea-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); }
+  .feed-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
   .feed-item:last-child { border-bottom: none; }
-
-  .feed-time {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-bottom: 2px;
-  }
-
+  .feed-time { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
   .feed-text { line-height: 1.4; }
-
-  /* --- Flags --- */
-  .flag-item {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-    font-size: 13px;
-  }
-
-  .flag-item.warning {
-    background: rgba(234, 179, 8, 0.08);
-    border-color: rgba(234, 179, 8, 0.2);
-  }
-
-  /* --- Empty State --- */
-  .empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-dim);
-    font-size: 14px;
-  }
-
-  /* --- Refresh --- */
-  .refresh-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 6px 14px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: background 0.2s;
-  }
-
+  .flag-item { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px; }
+  .flag-item.warning { background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.2); }
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 14px; }
+  .refresh-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
   .refresh-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
+  /* Live Ops */
+  .live-ops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .agent-status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .agent-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; transition: border-color 0.3s; }
+  .agent-card.working { border-color: var(--green); }
+  .agent-name { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .agent-status-text { font-size: 11px; color: var(--text-dim); }
+  .agent-status-text.working { color: var(--green); }
+  .agent-model { font-size: 10px; color: var(--text-dim); margin-top: 4px; opacity: 0.7; }
+  .live-feed { max-height: 600px; overflow-y: auto; }
+  .live-feed-item { padding: 10px 14px; border-bottom: 1px solid rgba(42, 42, 58, 0.5); font-size: 13px; animation: fadeIn 0.3s ease; display: flex; gap: 10px; align-items: flex-start; }
+  .live-feed-item.new { background: rgba(99, 102, 241, 0.05); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .feed-agent-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+  .feed-agent-tag.builder { background: rgba(99, 102, 241, 0.2); color: var(--accent); }
+  .feed-agent-tag.reviewer { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
+  .feed-agent-tag.ui_tester { background: rgba(6, 182, 212, 0.2); color: var(--cyan); }
+  .feed-agent-tag.security_auditor { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+  .feed-agent-tag.factory { background: rgba(122, 122, 138, 0.2); color: var(--text-dim); }
+  .feed-agent-tag.deployer { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .feed-content { flex: 1; min-width: 0; }
+  .feed-msg { line-height: 1.4; word-wrap: break-word; }
+  .feed-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .severity-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+  .severity-dot.info { background: var(--accent); } .severity-dot.warning { background: var(--yellow); }
+  .severity-dot.critical { background: var(--red); } .severity-dot.PASS { background: var(--green); } .severity-dot.FAIL { background: var(--red); }
+  .chat-item { padding: 10px 14px; border-bottom: 1px solid rgba(42, 42, 58, 0.5); font-size: 13px; animation: fadeIn 0.3s ease; }
+  .chat-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; color: var(--text-dim); }
+  .chat-arrow { color: var(--accent); font-weight: 600; }
+  .chat-msg { line-height: 1.5; padding-left: 4px; }
+  .connection-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
+  .connection-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .connection-dot.connected { background: var(--green); } .connection-dot.disconnected { background: var(--red); }
+  @media (max-width: 900px) { .metrics { grid-template-columns: repeat(3, 1fr); } .grid { grid-template-columns: 1fr; } .live-ops-grid { grid-template-columns: 1fr; } .agent-status-grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
-
 <div class="header">
   <h1><span>Sheldon</span> — AI Factory</h1>
   <div class="header-meta">
-    <span><span class="status-dot active" id="statusDot"></span> <span id="statusText">Running</span></span>
+    <div class="connection-status"><div class="connection-dot" id="connectionDot"></div><span id="connectionText">Connecting...</span></div>
+    <span><span class="status-dot active"></span> <span id="statusText">Running</span></span>
     <span id="lastUpdate">Last update: --</span>
     <button class="refresh-btn" onclick="loadData()">Refresh</button>
   </div>
 </div>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab(event,'factory')">Factory</button>
+  <button class="tab" onclick="switchTab(event,'live-ops')">Live Ops</button>
+</div>
 
-<div class="metrics">
-  <div class="metric-card">
-    <div class="metric-value accent" id="metricBuilding">0</div>
-    <div class="metric-label">Building</div>
+<!-- FACTORY VIEW -->
+<div class="tab-content active" id="tab-factory">
+  <div class="metrics">
+    <div class="metric-card"><div class="metric-value accent" id="metricBuilding">0</div><div class="metric-label">Building</div></div>
+    <div class="metric-card"><div class="metric-value cyan" id="metricTesting">0</div><div class="metric-label">Testing</div></div>
+    <div class="metric-card"><div class="metric-value green" id="metricShipped">0</div><div class="metric-label">Shipped</div></div>
+    <div class="metric-card"><div class="metric-value" id="metricQueued">0</div><div class="metric-label">Ideas Queued</div></div>
+    <div class="metric-card"><div class="metric-value red" id="metricFlags">0</div><div class="metric-label">Needs Attention</div></div>
   </div>
-  <div class="metric-card">
-    <div class="metric-value green" id="metricShipped">0</div>
-    <div class="metric-label">Shipped</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-value" id="metricQueued">0</div>
-    <div class="metric-label">Ideas Queued</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-value red" id="metricFlags">0</div>
-    <div class="metric-label">Needs Attention</div>
+  <div class="grid">
+    <div>
+      <div class="section"><div class="section-header"><span class="section-title">Active Projects</span><span class="badge accent" id="activeCount">0 / 3</span></div><div id="projectsList"><div class="empty">No active projects.</div></div></div>
+      <div class="section"><div class="section-header"><span class="section-title">Idea Queue</span><span class="badge green" id="ideaCount">0</span></div><div id="ideasList"><div class="empty">Monday research hasn't run yet.</div></div></div>
+    </div>
+    <div>
+      <div class="section"><div class="section-header"><span class="section-title">Needs Attention</span></div><div id="flagsList"><div class="empty" style="padding:20px">All clear</div></div></div>
+      <div class="section"><div class="section-header"><span class="section-title">Recent Activity</span></div><div id="activityFeed"><div class="empty" style="padding:20px">No activity yet</div></div></div>
+    </div>
   </div>
 </div>
 
-<div class="grid">
-  <div class="left">
-    <!-- Active Projects -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Active Projects</span>
-        <span class="badge accent" id="activeCount">0 / 3</span>
-      </div>
-      <div id="projectsList">
-        <div class="empty">No active projects. Approve an idea to get started.</div>
-      </div>
-    </div>
-
-    <!-- Idea Queue -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Idea Queue</span>
-        <span class="badge green" id="ideaCount">0</span>
-      </div>
-      <div id="ideasList">
-        <div class="empty">Monday research hasn't run yet. Ideas will appear here.</div>
-      </div>
-    </div>
+<!-- LIVE OPS VIEW -->
+<div class="tab-content" id="tab-live-ops">
+  <div class="agent-status-grid">
+    <div class="agent-card" id="agent-builder"><div class="agent-name">Builder</div><div class="agent-status-text" id="agent-builder-status">Idle</div><div class="agent-model">Opus 4.6</div></div>
+    <div class="agent-card" id="agent-ui_tester"><div class="agent-name">UI Tester</div><div class="agent-status-text" id="agent-ui_tester-status">Idle</div><div class="agent-model">Sonnet 4.6 + Maestro</div></div>
+    <div class="agent-card" id="agent-security_auditor"><div class="agent-name">Security</div><div class="agent-status-text" id="agent-security_auditor-status">Idle</div><div class="agent-model">Haiku 4.5</div></div>
+    <div class="agent-card" id="agent-reviewer"><div class="agent-name">Reviewer</div><div class="agent-status-text" id="agent-reviewer-status">Idle</div><div class="agent-model">Codex</div></div>
   </div>
-
-  <div class="right">
-    <!-- Flags -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Needs Attention</span>
-      </div>
-      <div id="flagsList">
-        <div class="empty" style="padding: 20px;">All clear</div>
-      </div>
-    </div>
-
-    <!-- Activity Feed -->
-    <div class="section">
-      <div class="section-header">
-        <span class="section-title">Activity Feed</span>
-      </div>
-      <div id="activityFeed">
-        <div class="empty" style="padding: 20px;">No activity yet</div>
-      </div>
-    </div>
+  <div class="live-ops-grid">
+    <div class="section"><div class="section-header"><span class="section-title">Live Activity Feed</span><span class="badge cyan" id="feedCount">0 events</span></div><div class="live-feed" id="liveFeed"><div class="empty" style="padding:20px">Waiting for agent activity...</div></div></div>
+    <div class="section"><div class="section-header"><span class="section-title">Agent Chat</span><span class="badge accent" id="chatCount">0 messages</span></div><div class="live-feed" id="chatFeed"><div class="empty" style="padding:20px">No inter-agent messages yet</div></div></div>
   </div>
 </div>
 
 <script>
-// ============================================================================
-// Dashboard Data Loading
-// ============================================================================
-// This dashboard reads state files from the factory's state/ directory.
-// In production, a small Python/Node server serves the JSON files.
-// For now, it works with the demo data below.
-//
-// To connect to live data:
-// 1. Run: python3 -m http.server 8080 --directory ~/.openclaw/workspace/state
-// 2. Update BACKEND_URL below
-// ============================================================================
-
+const SUPABASE_URL = localStorage.getItem('SUPABASE_URL') || '';
+const SUPABASE_ANON_KEY = localStorage.getItem('SUPABASE_ANON_KEY') || '';
 const BACKEND_URL = 'http://localhost:8080';
-const DEMO_MODE = true; // Set to false when backend server is running
+const DEMO_MODE = !SUPABASE_URL;
+const PHASE_PROGRESS = { ideation:10, validation:20, build:40, testing:55, review:70, monetize:80, deploy:90, submit:95, completed:100 };
+const PHASE_CLASS = { build:'build', testing:'testing', review:'review', deploy:'deploy', monetize:'build', submit:'deploy', flagged:'flagged' };
 
-// Phase progress percentages
-const PHASE_PROGRESS = {
-  'ideation': 10,
-  'validation': 20,
-  'build': 45,
-  'review': 65,
-  'monetize': 75,
-  'deploy': 90,
-  'submit': 95,
-  'completed': 100
-};
+let supabase = null, activityEvents = [], chatMessages = [];
+const agentLastSeen = {};
 
-// Phase display classes
-const PHASE_CLASS = {
-  'build': 'build',
-  'review': 'review',
-  'deploy': 'deploy',
-  'monetize': 'build',
-  'submit': 'deploy',
-  'flagged': 'flagged'
-};
-
-// --- Demo Data ---
-const DEMO_PROJECTS = [
-  {
-    slug: 'dance-ai',
-    name: 'Dance AI',
-    phase: 'build',
-    phase_status: 'in_progress',
-    last_updated: new Date().toISOString(),
-    scores: { validation: 9.2, review: null },
-    notes: 'Builder agent working on core video processing'
-  }
-];
-
-const DEMO_IDEAS = [
-  {
-    name: 'AI Dating Profile Coach',
-    slug: 'ai-dating-coach',
-    tagline: 'Upload your dating profile. AI tells you exactly what to fix.',
-    cal_ai_score: 6,
-    validation_score: 9.2,
-    verdict: 'BUILD',
-    category: 'Lifestyle / Dating',
-    build_estimate: '2 weeks',
-    approved: false
-  },
-  {
-    name: 'AI Body Progress Tracker',
-    slug: 'ai-body-tracker',
-    tagline: 'Photo-based body transformation tracking. No scale needed.',
-    cal_ai_score: 6,
-    validation_score: 8.8,
-    verdict: 'BUILD',
-    category: 'Health & Fitness',
-    build_estimate: '3 weeks',
-    approved: false
-  },
-  {
-    name: 'AI Fridge Meal Planner',
-    slug: 'ai-fridge-meals',
-    tagline: 'Photo your fridge. Get meals from what you already have.',
-    cal_ai_score: 5,
-    validation_score: 8.1,
-    verdict: 'BUILD',
-    category: 'Food & Drink',
-    build_estimate: '3 weeks',
-    approved: false
-  }
-];
-
-const DEMO_FLAGS = [];
-
-const DEMO_ACTIVITY = [
-  { time: '08:00', text: 'Factory loop started. 1 active project.' },
-  { time: '07:02', text: 'Monday research completed. 3 ideas added to queue.' },
-  { time: '07:00', text: 'Research agent spawned (Grok). Scanning markets...' }
-];
-
-// --- Render Functions ---
-
-function renderProject(project) {
-  const progress = PHASE_PROGRESS[project.phase] || 0;
-  const phaseClass = PHASE_CLASS[project.phase] || 'build';
-  const score = project.scores?.review;
-  const scoreClass = score >= 8 ? 'high' : score >= 6 ? 'mid' : score ? 'low' : '';
-  const scoreText = score ? `${score}/10` : '--';
-  const updated = project.last_updated ? new Date(project.last_updated).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '--';
-
-  return `
-    <div class="project-card">
-      <div class="project-top">
-        <span class="project-name">${project.name}</span>
-        <span class="project-phase ${phaseClass}">${project.phase.toUpperCase()}</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" style="width: ${progress}%"></div>
-      </div>
-      <div class="project-meta">
-        <span>Updated: ${updated}</span>
-        <span>Quality: <span class="score ${scoreClass}">${scoreText}</span></span>
-        <span>${project.phase_status || 'pending'}</span>
-      </div>
-    </div>
-  `;
+function initSupabase() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { updateConnection(false, 'Not configured'); return; }
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabase.channel('activity-feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_feed' }, payload => handleNewEvent(payload.new))
+      .subscribe(status => { updateConnection(status === 'SUBSCRIBED', status === 'SUBSCRIBED' ? 'Live' : 'Connecting...'); });
+    loadRecentActivity();
+  } catch (e) { updateConnection(false, 'Error'); }
 }
 
-function renderIdea(idea) {
-  const scoreColor = idea.validation_score >= 8 ? 'green' : idea.validation_score >= 6 ? 'yellow' : 'red';
-  return `
-    <div class="idea-card">
-      <div class="idea-top">
-        <span class="idea-name">${idea.name}</span>
-        <span class="idea-score badge ${scoreColor}">${idea.validation_score}/10</span>
-      </div>
-      <div class="idea-tagline">${idea.tagline}</div>
-      <div class="idea-meta">
-        <span>Cal AI: ${idea.cal_ai_score}/6</span>
-        <span>${idea.category}</span>
-        <span>${idea.build_estimate}</span>
-        <span class="badge ${idea.approved ? 'green' : 'accent'}">${idea.approved ? 'APPROVED' : idea.verdict}</span>
-      </div>
-    </div>
-  `;
+async function loadRecentActivity() {
+  if (!supabase) return;
+  const { data } = await supabase.from('activity_feed').select('*').order('created_at', { ascending: false }).limit(100);
+  if (data) { data.reverse().forEach(e => handleNewEvent(e, false)); renderLiveFeed(); renderChatFeed(); }
 }
 
-function renderFlag(flag) {
-  const cls = flag.type === 'critical' ? '' : 'warning';
-  return `<div class="flag-item ${cls}">${flag.text}</div>`;
+function handleNewEvent(event, isNew = true) {
+  if (event.event_type === 'chat' && event.to_agent) { chatMessages.unshift({ ...event, isNew }); if (chatMessages.length > 200) chatMessages.pop(); }
+  activityEvents.unshift({ ...event, isNew }); if (activityEvents.length > 200) activityEvents.pop();
+  updateAgentStatus(event.agent, event.event_type, event.message);
+  if (isNew) { renderLiveFeed(); renderChatFeed(); updateEventCounts(); }
 }
 
-function renderActivity(item) {
-  return `
-    <div class="feed-item">
-      <div class="feed-time">${item.time}</div>
-      <div class="feed-text">${item.text}</div>
-    </div>
-  `;
+function switchTab(e, name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  e.target.classList.add('active'); document.getElementById(`tab-${name}`).classList.add('active');
 }
 
-// --- Load & Render ---
+function updateConnection(ok, text) {
+  document.getElementById('connectionDot').className = `connection-dot ${ok ? 'connected' : 'disconnected'}`;
+  document.getElementById('connectionText').textContent = text;
+}
+
+function updateAgentStatus(agent, type, msg) {
+  const card = document.getElementById(`agent-${agent}`), el = document.getElementById(`agent-${agent}-status`);
+  if (!card || !el) return;
+  agentLastSeen[agent] = Date.now();
+  if (['progress','test_result','security_result'].includes(type)) { card.className='agent-card working'; el.className='agent-status-text working'; el.textContent=msg.substring(0,40); }
+  else if (['review_complete','test_complete'].includes(type)) { card.className='agent-card'; el.className='agent-status-text'; el.textContent='Done'; }
+  else if (type==='error'||type==='build_fail') { card.className='agent-card working'; card.style.borderColor='var(--red)'; el.style.color='var(--red)'; el.textContent='ERROR'; }
+}
+
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+function renderLiveFeed() {
+  const el = document.getElementById('liveFeed');
+  if (!activityEvents.length) { el.innerHTML='<div class="empty" style="padding:20px">Waiting for agent activity...</div>'; return; }
+  el.innerHTML = activityEvents.slice(0,50).map(e => {
+    const time = new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    return `<div class="live-feed-item ${e.isNew?'new':''}"><span class="feed-agent-tag ${e.agent}">${e.agent}</span><div class="feed-content"><div class="feed-msg"><span class="severity-dot ${e.severity||'info'}"></span>${escapeHtml(e.message)}</div><div class="feed-meta">${time} · ${e.project_slug||'system'} · ${e.event_type}</div></div></div>`;
+  }).join('');
+}
+
+function renderChatFeed() {
+  const el = document.getElementById('chatFeed');
+  if (!chatMessages.length) { el.innerHTML='<div class="empty" style="padding:20px">No inter-agent messages yet</div>'; return; }
+  el.innerHTML = chatMessages.slice(0,30).map(m => {
+    const time = new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    return `<div class="chat-item"><div class="chat-header"><span class="feed-agent-tag ${m.agent}">${m.agent}</span><span class="chat-arrow">→</span><span class="feed-agent-tag ${m.to_agent}">${m.to_agent}</span><span style="margin-left:auto">${time}</span></div><div class="chat-msg">${escapeHtml(m.message)}</div></div>`;
+  }).join('');
+}
+
+function updateEventCounts() {
+  document.getElementById('feedCount').textContent = `${activityEvents.length} events`;
+  document.getElementById('chatCount').textContent = `${chatMessages.length} messages`;
+}
+
+// --- Factory view ---
+const DEMO_PROJECTS = [{ slug:'groove-ai', name:'Groove AI', phase:'build', phase_status:'in_progress', last_updated:new Date().toISOString(), scores:{validation:9.2,review:null} }];
+const DEMO_IDEAS = [{ name:'AI Dating Profile Coach', slug:'ai-dating-coach', tagline:'Upload your profile. AI tells you what to fix.', cal_ai_score:6, validation_score:9.2, verdict:'BUILD', category:'Lifestyle', build_estimate:'2 weeks', approved:false }];
+
+function renderProject(p) {
+  const prog=PHASE_PROGRESS[p.phase]||0, cls=PHASE_CLASS[p.phase]||'build', s=p.scores?.review, sc=s>=8?'high':s>=6?'mid':s?'low':'', st=s?s+'/10':'--';
+  const upd=p.last_updated?new Date(p.last_updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'--';
+  return `<div class="project-card"><div class="project-top"><span class="project-name">${p.name}</span><span class="project-phase ${cls}">${p.phase.toUpperCase()}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div class="project-meta"><span>Updated: ${upd}</span><span>Quality: <span class="score ${sc}">${st}</span></span><span>${p.phase_status||'pending'}</span></div></div>`;
+}
+
+function renderIdea(i) {
+  const c=i.validation_score>=8?'green':i.validation_score>=6?'yellow':'red';
+  return `<div class="idea-card"><div class="idea-top"><span class="idea-name">${i.name}</span><span class="badge ${c}">${i.validation_score}/10</span></div><div class="idea-tagline">${i.tagline}</div><div class="idea-meta"><span>Cal AI: ${i.cal_ai_score}/6</span><span>${i.category}</span><span>${i.build_estimate}</span><span class="badge ${i.approved?'green':'accent'}">${i.approved?'APPROVED':i.verdict}</span></div></div>`;
+}
 
 async function loadData() {
-  let projects, ideas, flags, activity;
-
-  if (DEMO_MODE) {
-    projects = DEMO_PROJECTS;
-    ideas = DEMO_IDEAS;
-    flags = DEMO_FLAGS;
-    activity = DEMO_ACTIVITY;
-  } else {
-    try {
-      const [projRes, ideasRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/active/`).then(r => r.json()).catch(() => []),
-        fetch(`${BACKEND_URL}/ideas/`).then(r => r.json()).catch(() => [])
-      ]);
-      projects = projRes;
-      ideas = ideasRes;
-      flags = [];
-      activity = [];
-    } catch (e) {
-      console.error('Failed to load data:', e);
-      return;
-    }
-  }
-
-  // Update metrics
-  const building = projects.filter(p => ['build', 'review', 'monetize', 'deploy'].includes(p.phase)).length;
-  const shipped = projects.filter(p => p.phase === 'completed').length;
-  const flagCount = flags.length + projects.filter(p => p.phase === 'flagged').length;
-
-  document.getElementById('metricBuilding').textContent = building;
-  document.getElementById('metricShipped').textContent = shipped;
-  document.getElementById('metricQueued').textContent = ideas.filter(i => !i.approved).length;
-  document.getElementById('metricFlags').textContent = flagCount;
-  document.getElementById('activeCount').textContent = `${projects.length} / 3`;
-  document.getElementById('ideaCount').textContent = ideas.length;
-
-  // Render projects
-  const projectsEl = document.getElementById('projectsList');
-  if (projects.length > 0) {
-    projectsEl.innerHTML = projects.map(renderProject).join('');
-  } else {
-    projectsEl.innerHTML = '<div class="empty">No active projects. Approve an idea to get started.</div>';
-  }
-
-  // Render ideas
-  const ideasEl = document.getElementById('ideasList');
-  if (ideas.length > 0) {
-    ideasEl.innerHTML = ideas.map(renderIdea).join('');
-  } else {
-    ideasEl.innerHTML = '<div class="empty">Monday research hasn\'t run yet.</div>';
-  }
-
-  // Render flags
-  const flagsEl = document.getElementById('flagsList');
-  if (flags.length > 0) {
-    flagsEl.innerHTML = flags.map(renderFlag).join('');
-  } else {
-    flagsEl.innerHTML = '<div class="empty" style="padding: 20px;">All clear</div>';
-  }
-
-  // Render activity
-  const feedEl = document.getElementById('activityFeed');
-  if (activity.length > 0) {
-    feedEl.innerHTML = activity.map(renderActivity).join('');
-  }
-
-  // Update timestamp
-  document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+  let projects=DEMO_PROJECTS, ideas=DEMO_IDEAS, flags=[], activity=activityEvents.slice(0,10).map(e=>({time:new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),text:`[${e.agent}] ${e.message}`}));
+  if(activity.length===0) activity=[{time:'--',text:'No activity yet'}];
+  const building=projects.filter(p=>p.phase==='build').length, testing=projects.filter(p=>p.phase==='testing').length;
+  document.getElementById('metricBuilding').textContent=building;
+  document.getElementById('metricTesting').textContent=testing;
+  document.getElementById('metricShipped').textContent=0;
+  document.getElementById('metricQueued').textContent=ideas.filter(i=>!i.approved).length;
+  document.getElementById('metricFlags').textContent=flags.length;
+  document.getElementById('activeCount').textContent=`${projects.length} / 3`;
+  document.getElementById('ideaCount').textContent=ideas.length;
+  document.getElementById('projectsList').innerHTML=projects.length?projects.map(renderProject).join(''):'<div class="empty">No active projects.</div>';
+  document.getElementById('ideasList').innerHTML=ideas.length?ideas.map(renderIdea).join(''):'<div class="empty">No ideas yet.</div>';
+  document.getElementById('activityFeed').innerHTML=activity.map(a=>`<div class="feed-item"><div class="feed-time">${a.time}</div><div class="feed-text">${a.text}</div></div>`).join('');
+  document.getElementById('lastUpdate').textContent=`Last update: ${new Date().toLocaleTimeString()}`;
 }
 
-// Auto-refresh every 30 seconds
-loadData();
-setInterval(loadData, 30000);
-</script>
+// Reset idle agents after 5min
+setInterval(()=>{ const now=Date.now(); for(const[a,t]of Object.entries(agentLastSeen)){if(now-t>300000){const c=document.getElementById(`agent-${a}`),e=document.getElementById(`agent-${a}-status`);if(c&&e){c.className='agent-card';e.className='agent-status-text';e.textContent='Idle';}}}},30000);
 
+loadData(); initSupabase(); setInterval(loadData, 30000);
+</script>
 </body>
 </html>
