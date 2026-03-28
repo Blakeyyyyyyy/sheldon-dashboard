@@ -159,38 +159,53 @@
 </div>
 
 <script>
-const SUPABASE_URL = localStorage.getItem('SUPABASE_URL') || '';
-const SUPABASE_ANON_KEY = localStorage.getItem('SUPABASE_ANON_KEY') || '';
-const BACKEND_URL = 'http://localhost:8080';
-const DEMO_MODE = !SUPABASE_URL;
-const PHASE_PROGRESS = { ideation:10, validation:20, build:40, testing:55, review:70, monetize:80, deploy:90, submit:95, completed:100 };
-const PHASE_CLASS = { build:'build', testing:'testing', review:'review', deploy:'deploy', monetize:'build', submit:'deploy', flagged:'flagged' };
+const SUPABASE_URL = 'https://tfbcdcrlhsxvlufmnzdr.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_z6cUnoxTW8LozDQZ5Bfmgg_zIr80-H4';
+const PHASE_PROGRESS = { ideation:10, validation:20, psychology:30, 'ui-ux':35, build:50, testing:65, review:75, monetize:85, deploy:92, submit:97, completed:100 };
+const PHASE_CLASS = { build:'build', testing:'testing', review:'review', deploy:'deploy', monetize:'build', submit:'deploy', flagged:'flagged', psychology:'build', 'ui-ux':'build' };
 
 let supabase = null, activityEvents = [], chatMessages = [];
 const agentLastSeen = {};
 
+// Real project data from state/active/groove-ai/state.json
+const ACTIVE_PROJECTS = [
+  {
+    slug: 'groove-ai',
+    name: 'Groove AI',
+    phase: 'build',
+    phase_status: 'complete',
+    phase_note: 'Build #3 complete + backend. All services wired.',
+    last_updated: '2026-03-28T09:27:00+10:00',
+    build_number: 3,
+    scores: { review: null }
+  }
+];
+
+// Ideas queue — loaded from state/ideas/ if available
+const IDEAS = [];
+
 function initSupabase() {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) { updateConnection(false, 'Not configured'); return; }
   try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     supabase.channel('activity-feed')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_feed' }, payload => handleNewEvent(payload.new))
       .subscribe(status => { updateConnection(status === 'SUBSCRIBED', status === 'SUBSCRIBED' ? 'Live' : 'Connecting...'); });
     loadRecentActivity();
-  } catch (e) { updateConnection(false, 'Error'); }
+  } catch (e) { updateConnection(false, 'Error: ' + e.message); }
 }
 
 async function loadRecentActivity() {
   if (!supabase) return;
-  const { data } = await supabase.from('activity_feed').select('*').order('created_at', { ascending: false }).limit(100);
-  if (data) { data.reverse().forEach(e => handleNewEvent(e, false)); renderLiveFeed(); renderChatFeed(); }
+  const { data, error } = await supabase.from('activity_feed').select('*').order('created_at', { ascending: false }).limit(100);
+  if (error) { console.error('Supabase error:', error); return; }
+  if (data) { data.reverse().forEach(e => handleNewEvent(e, false)); renderLiveFeed(); renderChatFeed(); updateEventCounts(); }
 }
 
 function handleNewEvent(event, isNew = true) {
   if (event.event_type === 'chat' && event.to_agent) { chatMessages.unshift({ ...event, isNew }); if (chatMessages.length > 200) chatMessages.pop(); }
   activityEvents.unshift({ ...event, isNew }); if (activityEvents.length > 200) activityEvents.pop();
   updateAgentStatus(event.agent, event.event_type, event.message);
-  if (isNew) { renderLiveFeed(); renderChatFeed(); updateEventCounts(); }
+  if (isNew) { renderLiveFeed(); renderChatFeed(); updateEventCounts(); loadData(); }
 }
 
 function switchTab(e, name) {
@@ -238,42 +253,59 @@ function updateEventCounts() {
   document.getElementById('chatCount').textContent = `${chatMessages.length} messages`;
 }
 
-// --- Factory view ---
-const DEMO_PROJECTS = [{ slug:'groove-ai', name:'Groove AI', phase:'build', phase_status:'in_progress', last_updated:new Date().toISOString(), scores:{validation:9.2,review:null} }];
-const DEMO_IDEAS = [{ name:'AI Dating Profile Coach', slug:'ai-dating-coach', tagline:'Upload your profile. AI tells you what to fix.', cal_ai_score:6, validation_score:9.2, verdict:'BUILD', category:'Lifestyle', build_estimate:'2 weeks', approved:false }];
-
 function renderProject(p) {
   const prog=PHASE_PROGRESS[p.phase]||0, cls=PHASE_CLASS[p.phase]||'build', s=p.scores?.review, sc=s>=8?'high':s>=6?'mid':s?'low':'', st=s?s+'/10':'--';
   const upd=p.last_updated?new Date(p.last_updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'--';
-  return `<div class="project-card"><div class="project-top"><span class="project-name">${p.name}</span><span class="project-phase ${cls}">${p.phase.toUpperCase()}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div class="project-meta"><span>Updated: ${upd}</span><span>Quality: <span class="score ${sc}">${st}</span></span><span>${p.phase_status||'pending'}</span></div></div>`;
+  const note=p.phase_note?`<span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block">${escapeHtml(p.phase_note)}</span>`:'';
+  return `<div class="project-card"><div class="project-top"><span class="project-name">${escapeHtml(p.name)}</span><span class="project-phase ${cls}">${p.phase.toUpperCase()}${p.build_number?` #${p.build_number}`:''}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div class="project-meta"><span>Updated: ${upd}</span><span>Quality: <span class="score ${sc}">${st}</span></span><span class="badge ${p.phase_status==='complete'?'green':p.phase_status==='failed'?'red':'accent'}">${p.phase_status||'pending'}</span></div>${note}</div>`;
 }
 
 function renderIdea(i) {
   const c=i.validation_score>=8?'green':i.validation_score>=6?'yellow':'red';
-  return `<div class="idea-card"><div class="idea-top"><span class="idea-name">${i.name}</span><span class="badge ${c}">${i.validation_score}/10</span></div><div class="idea-tagline">${i.tagline}</div><div class="idea-meta"><span>Cal AI: ${i.cal_ai_score}/6</span><span>${i.category}</span><span>${i.build_estimate}</span><span class="badge ${i.approved?'green':'accent'}">${i.approved?'APPROVED':i.verdict}</span></div></div>`;
+  return `<div class="idea-card"><div class="idea-top"><span class="idea-name">${escapeHtml(i.name)}</span><span class="badge ${c}">${i.validation_score}/10</span></div><div class="idea-tagline">${escapeHtml(i.tagline||'')}</div><div class="idea-meta"><span>Cal AI: ${i.cal_ai_score||'?'}/6</span><span>${i.category||''}</span><span>${i.build_estimate||''}</span><span class="badge ${i.approved?'green':'accent'}">${i.approved?'APPROVED':i.verdict||'QUEUED'}</span></div></div>`;
 }
 
 async function loadData() {
-  let projects=DEMO_PROJECTS, ideas=DEMO_IDEAS, flags=[], activity=activityEvents.slice(0,10).map(e=>({time:new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),text:`[${e.agent}] ${e.message}`}));
-  if(activity.length===0) activity=[{time:'--',text:'No activity yet'}];
-  const building=projects.filter(p=>p.phase==='build').length, testing=projects.filter(p=>p.phase==='testing').length;
-  document.getElementById('metricBuilding').textContent=building;
-  document.getElementById('metricTesting').textContent=testing;
-  document.getElementById('metricShipped').textContent=0;
-  document.getElementById('metricQueued').textContent=ideas.filter(i=>!i.approved).length;
-  document.getElementById('metricFlags').textContent=flags.length;
-  document.getElementById('activeCount').textContent=`${projects.length} / 3`;
-  document.getElementById('ideaCount').textContent=ideas.length;
-  document.getElementById('projectsList').innerHTML=projects.length?projects.map(renderProject).join(''):'<div class="empty">No active projects.</div>';
-  document.getElementById('ideasList').innerHTML=ideas.length?ideas.map(renderIdea).join(''):'<div class="empty">No ideas yet.</div>';
-  document.getElementById('activityFeed').innerHTML=activity.map(a=>`<div class="feed-item"><div class="feed-time">${a.time}</div><div class="feed-text">${a.text}</div></div>`).join('');
-  document.getElementById('lastUpdate').textContent=`Last update: ${new Date().toLocaleTimeString()}`;
+  const projects = ACTIVE_PROJECTS;
+  const ideas = IDEAS;
+  const flags = activityEvents.filter(e => e.severity === 'critical' || e.event_type === 'build_fail').slice(0, 5);
+  const activity = activityEvents.slice(0, 10).map(e => ({
+    time: new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
+    text: `[${e.agent}] ${e.message}`
+  }));
+
+  const building = projects.filter(p => p.phase === 'build').length;
+  const testing = projects.filter(p => p.phase === 'testing').length;
+  const shipped = projects.filter(p => p.phase === 'completed' || p.phase === 'submit').length;
+
+  document.getElementById('metricBuilding').textContent = building;
+  document.getElementById('metricTesting').textContent = testing;
+  document.getElementById('metricShipped').textContent = shipped;
+  document.getElementById('metricQueued').textContent = ideas.filter(i => !i.approved).length;
+  document.getElementById('metricFlags').textContent = flags.length;
+  document.getElementById('activeCount').textContent = `${projects.length} / 3`;
+  document.getElementById('ideaCount').textContent = ideas.length;
+
+  document.getElementById('projectsList').innerHTML = projects.length ? projects.map(renderProject).join('') : '<div class="empty">No active projects.</div>';
+  document.getElementById('ideasList').innerHTML = ideas.length ? ideas.map(renderIdea).join('') : '<div class="empty">Monday research hasn\'t run yet.</div>';
+
+  if (flags.length) {
+    document.getElementById('flagsList').innerHTML = flags.map(f => `<div class="flag-item ${f.severity==='critical'?'':'warning'}"><strong>[${f.agent}]</strong> ${escapeHtml(f.message)}<div style="font-size:11px;color:var(--text-dim);margin-top:4px">${f.project_slug} · ${new Date(f.created_at).toLocaleTimeString()}</div></div>`).join('');
+  } else {
+    document.getElementById('flagsList').innerHTML = '<div class="empty" style="padding:20px">All clear</div>';
+  }
+
+  document.getElementById('activityFeed').innerHTML = activity.length
+    ? activity.map(a => `<div class="feed-item"><div class="feed-time">${a.time}</div><div class="feed-text">${escapeHtml(a.text)}</div></div>`).join('')
+    : '<div class="empty" style="padding:20px">No activity yet</div>';
+
+  document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
 }
 
 // Reset idle agents after 5min
 setInterval(()=>{ const now=Date.now(); for(const[a,t]of Object.entries(agentLastSeen)){if(now-t>300000){const c=document.getElementById(`agent-${a}`),e=document.getElementById(`agent-${a}-status`);if(c&&e){c.className='agent-card';e.className='agent-status-text';e.textContent='Idle';}}}},30000);
 
-loadData(); initSupabase(); setInterval(loadData, 30000);
+loadData(); initSupabase(); setInterval(loadData, 60000);
 </script>
 </body>
 </html>
