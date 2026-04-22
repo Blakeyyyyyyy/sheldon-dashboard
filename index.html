@@ -1,311 +1,1321 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sheldon — AI Factory Dashboard</title>
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  :root {
-    --bg: #0a0a0f; --surface: #12121a; --surface-2: #1a1a25; --surface-3: #222233;
-    --border: #2a2a3a; --text: #e0e0e8; --text-dim: #7a7a8a;
-    --accent: #6366f1; --accent-glow: rgba(99, 102, 241, 0.15);
-    --green: #22c55e; --yellow: #eab308; --red: #ef4444; --orange: #f97316; --cyan: #06b6d4;
-  }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; }
-  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-  .header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
-  .header h1 span { color: var(--accent); }
-  .header-meta { display: flex; gap: 16px; align-items: center; font-size: 13px; color: var(--text-dim); }
-  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; animation: pulse 2s infinite; }
-  .status-dot.active { background: var(--green); }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-  .tabs { display: flex; gap: 4px; margin-bottom: 24px; background: var(--surface); border-radius: 10px; padding: 4px; border: 1px solid var(--border); width: fit-content; }
-  .tab { padding: 8px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-dim); transition: all 0.2s; border: none; background: none; }
-  .tab:hover { color: var(--text); }
-  .tab.active { background: var(--accent); color: white; }
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
-  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
-  .metric-value { font-size: 36px; font-weight: 700; margin-bottom: 4px; }
-  .metric-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
-  .metric-value.green { color: var(--green); } .metric-value.yellow { color: var(--yellow); }
-  .metric-value.red { color: var(--red); } .metric-value.accent { color: var(--accent); } .metric-value.cyan { color: var(--cyan); }
-  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
-  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .section-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
-  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
-  .badge.green { background: rgba(34, 197, 94, 0.15); color: var(--green); }
-  .badge.yellow { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
-  .badge.red { background: rgba(239, 68, 68, 0.15); color: var(--red); }
-  .badge.accent { background: var(--accent-glow); color: var(--accent); }
-  .badge.cyan { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
-  .project-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; transition: border-color 0.2s; }
-  .project-card:hover { border-color: var(--accent); }
-  .project-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .project-name { font-size: 16px; font-weight: 600; }
-  .project-phase { font-size: 12px; padding: 2px 10px; border-radius: 6px; font-weight: 500; }
-  .project-phase.build { background: rgba(99, 102, 241, 0.15); color: var(--accent); }
-  .project-phase.testing { background: rgba(6, 182, 212, 0.15); color: var(--cyan); }
-  .project-phase.review { background: rgba(234, 179, 8, 0.15); color: var(--yellow); }
-  .project-phase.deploy { background: rgba(34, 197, 94, 0.15); color: var(--green); }
-  .project-phase.flagged { background: rgba(239, 68, 68, 0.15); color: var(--red); }
-  .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 10px; overflow: hidden; }
-  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), #818cf8); transition: width 0.5s ease; }
-  .project-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
-  .score { font-weight: 600; } .score.high { color: var(--green); } .score.mid { color: var(--yellow); } .score.low { color: var(--red); }
-  .idea-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.2s; }
-  .idea-card:hover { border-color: var(--accent); }
-  .idea-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-  .idea-name { font-size: 14px; font-weight: 600; }
-  .idea-tagline { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
-  .idea-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); }
-  .feed-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .feed-item:last-child { border-bottom: none; }
-  .feed-time { font-size: 11px; color: var(--text-dim); margin-bottom: 2px; }
-  .feed-text { line-height: 1.4; }
-  .flag-item { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 8px; font-size: 13px; }
-  .flag-item.warning { background: rgba(234, 179, 8, 0.08); border-color: rgba(234, 179, 8, 0.2); }
-  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 14px; }
-  .refresh-btn { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
-  .refresh-btn:hover { background: var(--accent-glow); border-color: var(--accent); }
-  /* Live Ops */
-  .live-ops-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-  .agent-status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-  .agent-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; transition: border-color 0.3s; }
-  .agent-card.working { border-color: var(--green); }
-  .agent-name { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .agent-status-text { font-size: 11px; color: var(--text-dim); }
-  .agent-status-text.working { color: var(--green); }
-  .agent-model { font-size: 10px; color: var(--text-dim); margin-top: 4px; opacity: 0.7; }
-  .live-feed { max-height: 600px; overflow-y: auto; }
-  .live-feed-item { padding: 10px 14px; border-bottom: 1px solid rgba(42, 42, 58, 0.5); font-size: 13px; animation: fadeIn 0.3s ease; display: flex; gap: 10px; align-items: flex-start; }
-  .live-feed-item.new { background: rgba(99, 102, 241, 0.05); }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-  .feed-agent-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
-  .feed-agent-tag.builder { background: rgba(99, 102, 241, 0.2); color: var(--accent); }
-  .feed-agent-tag.reviewer { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
-  .feed-agent-tag.ui_tester { background: rgba(6, 182, 212, 0.2); color: var(--cyan); }
-  .feed-agent-tag.security_auditor { background: rgba(239, 68, 68, 0.2); color: var(--red); }
-  .feed-agent-tag.factory { background: rgba(122, 122, 138, 0.2); color: var(--text-dim); }
-  .feed-agent-tag.deployer { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-  .feed-content { flex: 1; min-width: 0; }
-  .feed-msg { line-height: 1.4; word-wrap: break-word; }
-  .feed-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-  .severity-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
-  .severity-dot.info { background: var(--accent); } .severity-dot.warning { background: var(--yellow); }
-  .severity-dot.critical { background: var(--red); } .severity-dot.PASS { background: var(--green); } .severity-dot.FAIL { background: var(--red); }
-  .chat-item { padding: 10px 14px; border-bottom: 1px solid rgba(42, 42, 58, 0.5); font-size: 13px; animation: fadeIn 0.3s ease; }
-  .chat-header { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 11px; color: var(--text-dim); }
-  .chat-arrow { color: var(--accent); font-weight: 600; }
-  .chat-msg { line-height: 1.5; padding-left: 4px; }
-  .connection-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); }
-  .connection-dot { width: 6px; height: 6px; border-radius: 50%; }
-  .connection-dot.connected { background: var(--green); } .connection-dot.disconnected { background: var(--red); }
-  @media (max-width: 900px) { .metrics { grid-template-columns: repeat(3, 1fr); } .grid { grid-template-columns: 1fr; } .live-ops-grid { grid-template-columns: 1fr; } .agent-status-grid { grid-template-columns: repeat(2, 1fr); } }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Factory</title>
+  <style>
+    :root {
+      --bg: #09090b;
+      --surface: #18181b;
+      --surface-2: #27272a;
+      --border: #3f3f46;
+      --text: #fafafa;
+      --text-muted: #a1a1aa;
+      --accent: #818cf8;
+      --green: #4ade80;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    button { font-family: inherit; cursor: pointer; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ============ LAYOUT ============ */
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+      z-index: 10;
+    }
+
+    .sidebar-wordmark {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      padding: 0 24px 24px;
+      letter-spacing: 0.02em;
+    }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 8px 16px;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      padding: 8px 0;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+      border-left: 2px solid transparent;
+      background: transparent;
+      border-top: none;
+      border-right: none;
+      border-bottom: none;
+      text-align: left;
+      transition: background 120ms ease, color 120ms ease;
+    }
+
+    .nav-item:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+    .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    .nav-item.active {
+      color: var(--text);
+      background: var(--surface-2);
+      border-left-color: var(--accent);
+    }
+
+    .nav-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: currentColor; opacity: 0.5;
+    }
+    .nav-item.active .nav-dot { opacity: 1; background: var(--accent); }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding: 16px 24px;
+    }
+
+    .needs-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--amber);
+      padding: 10px 12px;
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      border-radius: var(--radius);
+      background: rgba(251, 191, 36, 0.05);
+    }
+
+    .needs-badge.pulsing {
+      animation: pulseAmber 2.2s ease-in-out infinite;
+    }
+
+    @keyframes pulseAmber {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.25); }
+      50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0); }
+    }
+
+    .content {
+      flex: 1;
+      margin-left: 220px;
+      padding: 32px 40px;
+      max-width: 100%;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 32px;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+    }
+
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-muted);
+      transition: background 200ms ease;
+    }
+    .live-dot.connected { background: var(--green); box-shadow: 0 0 6px rgba(74, 222, 128, 0.6); }
+    .live-dot.pending { background: var(--amber); }
+    .live-dot.error { background: var(--red); }
+
+    .error-banner {
+      display: none;
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: var(--red);
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      font-size: 13px;
+    }
+    .error-banner.visible { display: inline-flex; }
+
+    /* ============ TABS ============ */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+    }
+
+    /* ============ PIPELINE TAB ============ */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+      gap: 16px;
+    }
+
+    .campaign-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      cursor: pointer;
+      transition: border-color 150ms ease, transform 120ms ease;
+    }
+
+    .campaign-card:hover { border-color: var(--surface-2); border-left-color: var(--accent); }
+    .campaign-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .campaign-card.needs-blake {
+      border-left-color: var(--amber);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .warn-icon { color: var(--amber); }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 999px;
+      text-transform: capitalize;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .status-active { background: rgba(129, 140, 248, 0.12); color: var(--accent); border-color: rgba(129, 140, 248, 0.25); }
+    .status-blocked { background: rgba(248, 113, 113, 0.12); color: var(--red); border-color: rgba(248, 113, 113, 0.25); }
+    .status-queued { background: rgba(161, 161, 170, 0.12); color: var(--text-muted); border-color: rgba(161, 161, 170, 0.2); }
+    .status-paused { background: rgba(251, 191, 36, 0.12); color: var(--amber); border-color: rgba(251, 191, 36, 0.25); }
+    .status-done { background: rgba(74, 222, 128, 0.12); color: var(--green); border-color: rgba(74, 222, 128, 0.25); }
+    .status-awaiting { background: rgba(251, 191, 36, 0.12); color: var(--amber); border-color: rgba(251, 191, 36, 0.25); }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 240ms ease;
+    }
+
+    .progress-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .stage-dots {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 12px 0 14px;
+      position: relative;
+    }
+
+    .stage-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      flex-shrink: 0;
+      z-index: 1;
+    }
+    .stage-dot.filled { background: var(--accent); }
+
+    .stage-line {
+      flex: 1;
+      height: 1px;
+      background: var(--surface-2);
+    }
+    .stage-line.filled { background: var(--accent); }
+
+    .card-agent-line {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .card-agent-line .muted { color: var(--text-muted); }
+
+    .card-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .card-task-text {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      transition: background 120ms ease, border-color 120ms ease;
+    }
+    .btn:hover { background: var(--border); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #0b0b10; }
+    .btn-primary:hover { background: #9aa3fc; border-color: #9aa3fc; }
+
+    .btn-danger { background: transparent; border-color: rgba(248, 113, 113, 0.4); color: var(--red); }
+    .btn-danger:hover { background: rgba(248, 113, 113, 0.08); }
+
+    .card-expanded {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .card-expanded h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .expanded-log-row {
+      display: flex;
+      gap: 12px;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(63, 63, 70, 0.4);
+    }
+    .expanded-log-row:last-child { border-bottom: none; }
+    .expanded-log-time { color: var(--text-muted); font-family: ui-monospace, Menlo, monospace; min-width: 70px; }
+    .expanded-log-agent { color: var(--text); font-weight: 500; min-width: 90px; }
+    .expanded-log-action { color: var(--text-muted); flex: 1; }
+
+    /* ============ ACTIVITY TAB ============ */
+    .activity-list { background: transparent; }
+
+    .activity-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .activity-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-muted); flex-shrink: 0;
+    }
+
+    .activity-time {
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+      min-width: 110px;
+    }
+
+    .activity-agent {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      min-width: 140px;
+    }
+
+    .activity-action {
+      font-size: 13px;
+      color: var(--text-muted);
+      flex: 1;
+    }
+
+    /* ============ COSTS TAB ============ */
+    .cost-section { margin-bottom: 40px; }
+
+    .cost-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .cost-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 240px 80px;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cost-row-name { font-size: 14px; color: var(--text); }
+    .cost-row-amount { font-size: 14px; color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+    .cost-row-cap { font-size: 12px; color: var(--text-muted); }
+
+    .cost-bar {
+      height: 6px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .cost-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 300ms ease;
+    }
+    .cost-bar-fill.over { background: var(--red); }
+
+    .cost-totals {
+      display: flex;
+      gap: 48px;
+      padding: 16px 0;
+      margin-top: 8px;
+    }
+    .cost-total-item { display: flex; flex-direction: column; gap: 4px; }
+    .cost-total-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .cost-total-value { font-size: 22px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 60px;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 0;
+    }
+    .breakdown-name { font-size: 14px; color: var(--text); }
+    .breakdown-amount { font-size: 14px; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+    .breakdown-pct { font-size: 13px; color: var(--text-muted); text-align: right; }
+
+    /* ============ APPS TAB ============ */
+    .apps-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .apps-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .apps-table th:hover { color: var(--text); }
+    .apps-table th .sort-indicator { margin-left: 4px; color: var(--accent); }
+
+    .apps-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .apps-table td.muted { color: var(--text-muted); }
+
+    /* ============ MODAL ============ */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 80vh;
+      overflow: auto;
+      position: relative;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-title { font-size: 16px; font-weight: 600; }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      line-height: 1;
+      padding: 4px 8px;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 12px;
+      font-family: ui-monospace, Menlo, monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      color: var(--text);
+    }
+
+    .modal-body p { color: var(--text); font-size: 14px; }
+
+    /* ============ MOBILE ============ */
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: 60px;
+        top: auto;
+        bottom: 0;
+        left: 0; right: 0;
+        padding: 0;
+        flex-direction: row;
+        border-right: none;
+        border-top: 1px solid var(--border);
+      }
+
+      .sidebar-wordmark,
+      .sidebar-divider,
+      .sidebar-bottom { display: none; }
+
+      .sidebar-nav {
+        flex-direction: row;
+        width: 100%;
+        padding: 0;
+        height: 100%;
+      }
+
+      .nav-item {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 0;
+        border-left: none;
+        border-top: 2px solid transparent;
+        font-size: 11px;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .nav-item.active {
+        border-left-color: transparent;
+        border-top-color: var(--accent);
+      }
+
+      .nav-glyph {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .nav-dot { display: none; }
+
+      .content {
+        margin-left: 0;
+        padding: 20px 16px 80px;
+      }
+
+      .pipeline-grid { grid-template-columns: 1fr; }
+
+      .cost-row { grid-template-columns: 1fr 80px; }
+      .cost-row .cost-bar,
+      .cost-row .cost-row-cap { display: none; }
+
+      .activity-time { min-width: 80px; }
+      .activity-agent { min-width: 100px; }
+
+      .apps-table th, .apps-table td { padding: 10px 8px; font-size: 13px; }
+    }
+
+    @media (min-width: 769px) {
+      .nav-glyph { display: none; }
+    }
+  </style>
 </head>
 <body>
-<div class="header">
-  <h1><span>Sheldon</span> — AI Factory</h1>
-  <div class="header-meta">
-    <div class="connection-status"><div class="connection-dot" id="connectionDot"></div><span id="connectionText">Connecting...</span></div>
-    <span><span class="status-dot active"></span> <span id="statusText">Running</span></span>
-    <span id="lastUpdate">Last update: --</span>
-    <button class="refresh-btn" onclick="loadData()">Refresh</button>
-  </div>
-</div>
-<div class="tabs">
-  <button class="tab active" onclick="switchTab(event,'factory')">Factory</button>
-  <button class="tab" onclick="switchTab(event,'live-ops')">Live Ops</button>
-</div>
+  <div class="app">
+    <aside class="sidebar" role="navigation" aria-label="Main">
+      <div class="sidebar-wordmark">FACTORY</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-nav" id="sidebar-nav">
+        <button class="nav-item" data-tab="pipeline" type="button">
+          <span class="nav-glyph" aria-hidden="true">&#9638;</span>
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Pipeline</span>
+        </button>
+        <button class="nav-item" data-tab="activity" type="button">
+          <span class="nav-glyph" aria-hidden="true">&#8801;</span>
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Activity</span>
+        </button>
+        <button class="nav-item" data-tab="costs" type="button">
+          <span class="nav-glyph" aria-hidden="true">$</span>
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Costs</span>
+        </button>
+        <button class="nav-item" data-tab="apps" type="button">
+          <span class="nav-glyph" aria-hidden="true">&#9841;</span>
+          <span class="nav-dot" aria-hidden="true"></span>
+          <span>Apps</span>
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="sidebar-divider" style="margin: 0 0 16px;"></div>
+        <div class="needs-badge" id="needs-badge" role="status" aria-live="polite">
+          <span aria-hidden="true">&#9888;</span>
+          <span id="needs-badge-text">0 need your input</span>
+        </div>
+      </div>
+    </aside>
 
-<!-- FACTORY VIEW -->
-<div class="tab-content active" id="tab-factory">
-  <div class="metrics">
-    <div class="metric-card"><div class="metric-value accent" id="metricBuilding">0</div><div class="metric-label">Building</div></div>
-    <div class="metric-card"><div class="metric-value cyan" id="metricTesting">0</div><div class="metric-label">Testing</div></div>
-    <div class="metric-card"><div class="metric-value green" id="metricShipped">0</div><div class="metric-label">Shipped</div></div>
-    <div class="metric-card"><div class="metric-value" id="metricQueued">0</div><div class="metric-label">Ideas Queued</div></div>
-    <div class="metric-card"><div class="metric-value red" id="metricFlags">0</div><div class="metric-label">Needs Attention</div></div>
+    <main class="content">
+      <div class="header">
+        <h1>Factory</h1>
+        <div class="header-right">
+          <span class="error-banner" id="error-banner">Supabase unreachable &mdash; retrying&hellip;</span>
+          <span id="current-date"></span>
+          <span class="live-indicator">
+            <span class="live-dot pending" id="live-dot" aria-hidden="true"></span>
+            <span id="live-label">Connecting</span>
+          </span>
+        </div>
+      </div>
+
+      <section class="tab-panel" id="tab-pipeline" role="tabpanel">
+        <div id="pipeline-content"></div>
+      </section>
+
+      <section class="tab-panel" id="tab-activity" role="tabpanel">
+        <div class="activity-list" id="activity-content"></div>
+      </section>
+
+      <section class="tab-panel" id="tab-costs" role="tabpanel">
+        <div id="costs-content"></div>
+      </section>
+
+      <section class="tab-panel" id="tab-apps" role="tabpanel">
+        <div id="apps-content"></div>
+      </section>
+    </main>
   </div>
-  <div class="grid">
-    <div>
-      <div class="section"><div class="section-header"><span class="section-title">Active Projects</span><span class="badge accent" id="activeCount">0 / 3</span></div><div id="projectsList"><div class="empty">No active projects.</div></div></div>
-      <div class="section"><div class="section-header"><span class="section-title">Idea Queue</span><span class="badge green" id="ideaCount">0</span></div><div id="ideasList"><div class="empty">Monday research hasn't run yet.</div></div></div>
+
+  <div class="modal-backdrop" id="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-title">Brief</div>
+        <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
     </div>
-    <div>
-      <div class="section"><div class="section-header"><span class="section-title">Needs Attention</span></div><div id="flagsList"><div class="empty" style="padding:20px">All clear</div></div></div>
-      <div class="section"><div class="section-header"><span class="section-title">Recent Activity</span></div><div id="activityFeed"><div class="empty" style="padding:20px">No activity yet</div></div></div>
-    </div>
   </div>
-</div>
 
-<!-- LIVE OPS VIEW -->
-<div class="tab-content" id="tab-live-ops">
-  <div class="agent-status-grid">
-    <div class="agent-card" id="agent-builder"><div class="agent-name">Builder</div><div class="agent-status-text" id="agent-builder-status">Idle</div><div class="agent-model">Opus 4.6</div></div>
-    <div class="agent-card" id="agent-ui_tester"><div class="agent-name">UI Tester</div><div class="agent-status-text" id="agent-ui_tester-status">Idle</div><div class="agent-model">Sonnet 4.6 + Maestro</div></div>
-    <div class="agent-card" id="agent-security_auditor"><div class="agent-name">Security</div><div class="agent-status-text" id="agent-security_auditor-status">Idle</div><div class="agent-model">Haiku 4.5</div></div>
-    <div class="agent-card" id="agent-reviewer"><div class="agent-name">Reviewer</div><div class="agent-status-text" id="agent-reviewer-status">Idle</div><div class="agent-model">Codex</div></div>
-  </div>
-  <div class="live-ops-grid">
-    <div class="section"><div class="section-header"><span class="section-title">Live Activity Feed</span><span class="badge cyan" id="feedCount">0 events</span></div><div class="live-feed" id="liveFeed"><div class="empty" style="padding:20px">Waiting for agent activity...</div></div></div>
-    <div class="section"><div class="section-header"><span class="section-title">Agent Chat</span><span class="badge accent" id="chatCount">0 messages</span></div><div class="live-feed" id="chatFeed"><div class="empty" style="padding:20px">No inter-agent messages yet</div></div></div>
-  </div>
-</div>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-<script>
-const SUPABASE_URL = 'https://tfbcdcrlhsxvlufmnzdr.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_z6cUnoxTW8LozDQZ5Bfmgg_zIr80-H4';
-const PHASE_PROGRESS = { ideation:10, validation:20, psychology:30, 'ui-ux':35, build:50, testing:65, review:75, monetize:85, deploy:92, submit:97, completed:100 };
-const PHASE_CLASS = { build:'build', testing:'testing', review:'review', deploy:'deploy', monetize:'build', submit:'deploy', flagged:'flagged', psychology:'build', 'ui-ux':'build' };
+    const SUPABASE_URL = 'https://lqprxfokpkrstxpcklpc.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_Fy5-ufvZKUTCYjffaE1SHA_A3atmpgQ';
 
-let supabase = null, activityEvents = [], chatMessages = [];
-const agentLastSeen = {};
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      realtime: { params: { eventsPerSecond: 10 } }
+    });
 
-// Real project data from state/active/groove-ai/state.json
-const ACTIVE_PROJECTS = [
-  {
-    slug: 'groove-ai',
-    name: 'Groove AI',
-    phase: 'build',
-    phase_status: 'complete',
-    phase_note: 'Build #3 complete + backend. All services wired.',
-    last_updated: '2026-03-28T09:27:00+10:00',
-    build_number: 3,
-    scores: { review: null }
-  }
-];
+    const TABS = ['pipeline', 'activity', 'costs', 'apps'];
+    const STAGE_COUNT = 10;
 
-// Ideas queue — loaded from state/ideas/ if available
-const IDEAS = [];
+    const state = {
+      campaigns: [],
+      activity: [],
+      expandedCards: new Set(),
+      appsSort: { column: 'created_at', dir: 'desc' },
+      costsInterval: null,
+      currentTab: 'pipeline',
+    };
 
-function initSupabase() {
-  try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    supabase.channel('activity-feed')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_feed' }, payload => handleNewEvent(payload.new))
-      .subscribe(status => { updateConnection(status === 'SUBSCRIBED', status === 'SUBSCRIBED' ? 'Live' : 'Connecting...'); });
-    loadRecentActivity();
-  } catch (e) { updateConnection(false, 'Error: ' + e.message); }
-}
+    // ============ DATE / TIME HELPERS ============
+    function formatHeaderDate(d) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
 
-async function loadRecentActivity() {
-  if (!supabase) return;
-  const { data, error } = await supabase.from('activity_feed').select('*').order('created_at', { ascending: false }).limit(100);
-  if (error) { console.error('Supabase error:', error); return; }
-  if (data) { data.reverse().forEach(e => handleNewEvent(e, false)); renderLiveFeed(); renderChatFeed(); updateEventCounts(); }
-}
+    function formatShortDate(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
 
-function handleNewEvent(event, isNew = true) {
-  if (event.event_type === 'chat' && event.to_agent) { chatMessages.unshift({ ...event, isNew }); if (chatMessages.length > 200) chatMessages.pop(); }
-  activityEvents.unshift({ ...event, isNew }); if (activityEvents.length > 200) activityEvents.pop();
-  updateAgentStatus(event.agent, event.event_type, event.message);
-  if (isNew) { renderLiveFeed(); renderChatFeed(); updateEventCounts(); loadData(); }
-}
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
 
-function switchTab(e, name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  e.target.classList.add('active'); document.getElementById(`tab-${name}`).classList.add('active');
-}
+    function formatRelative(iso) {
+      if (!iso) return '';
+      const then = new Date(iso).getTime();
+      const now = Date.now();
+      const diffSec = Math.max(0, Math.floor((now - then) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      const diffMin = Math.floor(diffSec / 60);
+      if (diffMin < 60) return `${diffMin} min ago`;
+      const diffHr = Math.floor(diffMin / 60);
+      if (diffHr < 24) return `${diffHr}h ago`;
+      const diffDay = Math.floor(diffHr / 24);
+      return `${diffDay}d ago`;
+    }
 
-function updateConnection(ok, text) {
-  document.getElementById('connectionDot').className = `connection-dot ${ok ? 'connected' : 'disconnected'}`;
-  document.getElementById('connectionText').textContent = text;
-}
+    function fmtMoney(n) {
+      const v = Number(n) || 0;
+      return `$${v.toFixed(2)}`;
+    }
 
-function updateAgentStatus(agent, type, msg) {
-  const card = document.getElementById(`agent-${agent}`), el = document.getElementById(`agent-${agent}-status`);
-  if (!card || !el) return;
-  agentLastSeen[agent] = Date.now();
-  if (['progress','test_result','security_result'].includes(type)) { card.className='agent-card working'; el.className='agent-status-text working'; el.textContent=msg.substring(0,40); }
-  else if (['review_complete','test_complete'].includes(type)) { card.className='agent-card'; el.className='agent-status-text'; el.textContent='Done'; }
-  else if (type==='error'||type==='build_fail') { card.className='agent-card working'; card.style.borderColor='var(--red)'; el.style.color='var(--red)'; el.textContent='ERROR'; }
-}
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    const escapeAttr = escapeHtml;
 
-function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+    // ============ TAB ROUTING ============
+    function setActiveTab(tab) {
+      if (!TABS.includes(tab)) tab = 'pipeline';
+      state.currentTab = tab;
 
-function renderLiveFeed() {
-  const el = document.getElementById('liveFeed');
-  if (!activityEvents.length) { el.innerHTML='<div class="empty" style="padding:20px">Waiting for agent activity...</div>'; return; }
-  el.innerHTML = activityEvents.slice(0,50).map(e => {
-    const time = new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    return `<div class="live-feed-item ${e.isNew?'new':''}"><span class="feed-agent-tag ${e.agent}">${e.agent}</span><div class="feed-content"><div class="feed-msg"><span class="severity-dot ${e.severity||'info'}"></span>${escapeHtml(e.message)}</div><div class="feed-meta">${time} · ${e.project_slug||'system'} · ${e.event_type}</div></div></div>`;
-  }).join('');
-}
+      document.querySelectorAll('.nav-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.tab === tab);
+        el.setAttribute('aria-current', el.dataset.tab === tab ? 'page' : 'false');
+      });
+      document.querySelectorAll('.tab-panel').forEach(el => {
+        el.classList.toggle('active', el.id === `tab-${tab}`);
+      });
 
-function renderChatFeed() {
-  const el = document.getElementById('chatFeed');
-  if (!chatMessages.length) { el.innerHTML='<div class="empty" style="padding:20px">No inter-agent messages yet</div>'; return; }
-  el.innerHTML = chatMessages.slice(0,30).map(m => {
-    const time = new Date(m.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    return `<div class="chat-item"><div class="chat-header"><span class="feed-agent-tag ${m.agent}">${m.agent}</span><span class="chat-arrow">→</span><span class="feed-agent-tag ${m.to_agent}">${m.to_agent}</span><span style="margin-left:auto">${time}</span></div><div class="chat-msg">${escapeHtml(m.message)}</div></div>`;
-  }).join('');
-}
+      if (tab === 'costs') {
+        renderCosts();
+        if (state.costsInterval) clearInterval(state.costsInterval);
+        state.costsInterval = setInterval(renderCosts, 30000);
+      } else if (state.costsInterval) {
+        clearInterval(state.costsInterval);
+        state.costsInterval = null;
+      }
 
-function updateEventCounts() {
-  document.getElementById('feedCount').textContent = `${activityEvents.length} events`;
-  document.getElementById('chatCount').textContent = `${chatMessages.length} messages`;
-}
+      if (tab === 'apps') renderApps();
+      if (tab === 'activity') renderActivity();
+      if (tab === 'pipeline') renderPipeline();
+    }
 
-function renderProject(p) {
-  const prog=PHASE_PROGRESS[p.phase]||0, cls=PHASE_CLASS[p.phase]||'build', s=p.scores?.review, sc=s>=8?'high':s>=6?'mid':s?'low':'', st=s?s+'/10':'--';
-  const upd=p.last_updated?new Date(p.last_updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'--';
-  const note=p.phase_note?`<span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block">${escapeHtml(p.phase_note)}</span>`:'';
-  return `<div class="project-card"><div class="project-top"><span class="project-name">${escapeHtml(p.name)}</span><span class="project-phase ${cls}">${p.phase.toUpperCase()}${p.build_number?` #${p.build_number}`:''}</span></div><div class="progress-bar"><div class="progress-fill" style="width:${prog}%"></div></div><div class="project-meta"><span>Updated: ${upd}</span><span>Quality: <span class="score ${sc}">${st}</span></span><span class="badge ${p.phase_status==='complete'?'green':p.phase_status==='failed'?'red':'accent'}">${p.phase_status||'pending'}</span></div>${note}</div>`;
-}
+    function routeFromHash() {
+      const hash = (window.location.hash || '#pipeline').replace('#', '');
+      setActiveTab(hash);
+    }
 
-function renderIdea(i) {
-  const c=i.validation_score>=8?'green':i.validation_score>=6?'yellow':'red';
-  return `<div class="idea-card"><div class="idea-top"><span class="idea-name">${escapeHtml(i.name)}</span><span class="badge ${c}">${i.validation_score}/10</span></div><div class="idea-tagline">${escapeHtml(i.tagline||'')}</div><div class="idea-meta"><span>Cal AI: ${i.cal_ai_score||'?'}/6</span><span>${i.category||''}</span><span>${i.build_estimate||''}</span><span class="badge ${i.approved?'green':'accent'}">${i.approved?'APPROVED':i.verdict||'QUEUED'}</span></div></div>`;
-}
+    document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+      const item = e.target.closest('.nav-item');
+      if (!item) return;
+      window.location.hash = `#${item.dataset.tab}`;
+    });
 
-async function loadData() {
-  const projects = ACTIVE_PROJECTS;
-  const ideas = IDEAS;
-  const flags = activityEvents.filter(e => e.severity === 'critical' || e.event_type === 'build_fail').slice(0, 5);
-  const activity = activityEvents.slice(0, 10).map(e => ({
-    time: new Date(e.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}),
-    text: `[${e.agent}] ${e.message}`
-  }));
+    window.addEventListener('hashchange', routeFromHash);
 
-  const building = projects.filter(p => p.phase === 'build').length;
-  const testing = projects.filter(p => p.phase === 'testing').length;
-  const shipped = projects.filter(p => p.phase === 'completed' || p.phase === 'submit').length;
+    // ============ LIVE INDICATOR ============
+    function setLiveState(s) {
+      const dot = document.getElementById('live-dot');
+      const label = document.getElementById('live-label');
+      dot.classList.remove('connected', 'pending', 'error');
+      if (s === 'connected') { dot.classList.add('connected'); label.textContent = 'Live'; }
+      else if (s === 'error') { dot.classList.add('error'); label.textContent = 'Offline'; }
+      else { dot.classList.add('pending'); label.textContent = 'Connecting'; }
+    }
 
-  document.getElementById('metricBuilding').textContent = building;
-  document.getElementById('metricTesting').textContent = testing;
-  document.getElementById('metricShipped').textContent = shipped;
-  document.getElementById('metricQueued').textContent = ideas.filter(i => !i.approved).length;
-  document.getElementById('metricFlags').textContent = flags.length;
-  document.getElementById('activeCount').textContent = `${projects.length} / 3`;
-  document.getElementById('ideaCount').textContent = ideas.length;
+    function showError(visible) {
+      document.getElementById('error-banner').classList.toggle('visible', !!visible);
+    }
 
-  document.getElementById('projectsList').innerHTML = projects.length ? projects.map(renderProject).join('') : '<div class="empty">No active projects.</div>';
-  document.getElementById('ideasList').innerHTML = ideas.length ? ideas.map(renderIdea).join('') : '<div class="empty">Monday research hasn\'t run yet.</div>';
+    // ============ DATA LOAD ============
+    async function loadCampaigns() {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      state.campaigns = data || [];
+      updateNeedsBadge();
+      if (state.currentTab === 'pipeline') renderPipeline();
+      if (state.currentTab === 'apps') renderApps();
+    }
 
-  if (flags.length) {
-    document.getElementById('flagsList').innerHTML = flags.map(f => `<div class="flag-item ${f.severity==='critical'?'':'warning'}"><strong>[${f.agent}]</strong> ${escapeHtml(f.message)}<div style="font-size:11px;color:var(--text-dim);margin-top:4px">${f.project_slug} · ${new Date(f.created_at).toLocaleTimeString()}</div></div>`).join('');
-  } else {
-    document.getElementById('flagsList').innerHTML = '<div class="empty" style="padding:20px">All clear</div>';
-  }
+    async function loadActivity() {
+      const { data, error } = await supabase
+        .from('activity_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      state.activity = data || [];
+      if (state.currentTab === 'activity') renderActivity();
+    }
 
-  document.getElementById('activityFeed').innerHTML = activity.length
-    ? activity.map(a => `<div class="feed-item"><div class="feed-time">${a.time}</div><div class="feed-text">${escapeHtml(a.text)}</div></div>`).join('')
-    : '<div class="empty" style="padding:20px">No activity yet</div>';
+    async function bootstrap() {
+      try {
+        await Promise.all([loadCampaigns(), loadActivity()]);
+        showError(false);
+        subscribeRealtime();
+      } catch (err) {
+        console.error('Supabase bootstrap failed:', err);
+        showError(true);
+        setLiveState('error');
+        setTimeout(bootstrap, 10000);
+      }
+    }
 
-  document.getElementById('lastUpdate').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
-}
+    // ============ REALTIME ============
+    let activityChannel = null;
+    let campaignsChannel = null;
 
-// Reset idle agents after 5min
-setInterval(()=>{ const now=Date.now(); for(const[a,t]of Object.entries(agentLastSeen)){if(now-t>300000){const c=document.getElementById(`agent-${a}`),e=document.getElementById(`agent-${a}-status`);if(c&&e){c.className='agent-card';e.className='agent-status-text';e.textContent='Idle';}}}},30000);
+    function subscribeRealtime() {
+      if (activityChannel) supabase.removeChannel(activityChannel);
+      if (campaignsChannel) supabase.removeChannel(campaignsChannel);
 
-loadData(); initSupabase(); setInterval(loadData, 60000);
-</script>
+      activityChannel = supabase
+        .channel('activity-stream')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activity_log' }, (payload) => {
+          state.activity.unshift(payload.new);
+          if (state.activity.length > 100) state.activity.length = 100;
+          if (state.currentTab === 'activity') renderActivity();
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') setLiveState('connected');
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setLiveState('error');
+          else setLiveState('pending');
+        });
+
+      campaignsChannel = supabase
+        .channel('campaigns-stream')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'campaigns' }, () => {
+          loadCampaigns().catch(err => console.error(err));
+        })
+        .subscribe();
+    }
+
+    // ============ NEEDS BADGE ============
+    function updateNeedsBadge() {
+      const n = state.campaigns.filter(c => c.needs_blake && c.status !== 'done').length;
+      const badge = document.getElementById('needs-badge');
+      const text = document.getElementById('needs-badge-text');
+      text.textContent = `${n} need your input`;
+      badge.classList.toggle('pulsing', n > 0);
+    }
+
+    // ============ PIPELINE RENDER ============
+    function renderStageDots(stage) {
+      const current = Math.min(Math.max(Number(stage) || 0, 0), STAGE_COUNT);
+      let html = '';
+      for (let i = 1; i <= STAGE_COUNT; i++) {
+        html += `<span class="stage-dot${i <= current ? ' filled' : ''}"></span>`;
+        if (i < STAGE_COUNT) {
+          html += `<span class="stage-line${i < current ? ' filled' : ''}"></span>`;
+        }
+      }
+      return html;
+    }
+
+    function renderPipeline() {
+      const container = document.getElementById('pipeline-content');
+      const active = state.campaigns.filter(c => ['active', 'blocked', 'queued', 'paused'].includes(c.status));
+
+      if (active.length === 0) {
+        container.innerHTML = `<div class="empty-state">No active campaigns. Drop a brief to start one.</div>`;
+        return;
+      }
+
+      const cards = active.map(c => renderCampaignCard(c)).join('');
+      container.innerHTML = `<div class="pipeline-grid">${cards}</div>`;
+
+      container.querySelectorAll('[data-card-slug]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.card-actions')) return;
+          const slug = el.dataset.cardSlug;
+          if (state.expandedCards.has(slug)) state.expandedCards.delete(slug);
+          else state.expandedCards.add(slug);
+          renderPipeline();
+        });
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            el.click();
+          }
+        });
+      });
+
+      container.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const action = btn.dataset.action;
+          const slug = btn.dataset.slug;
+          if (action === 'approve') handleApproval(slug, 'approved');
+          else if (action === 'changes') handleApproval(slug, 'changes_requested');
+          else if (action === 'brief') openBriefModal(slug);
+        });
+      });
+    }
+
+    function renderCampaignCard(c) {
+      const statusKey = (c.status || 'active').toLowerCase();
+      const needsBlake = !!c.needs_blake;
+      const slug = c.slug || c.id;
+      const stage = Number(c.stage) || 0;
+      const pct = Math.min(100, (stage / STAGE_COUNT) * 100);
+      const expanded = state.expandedCards.has(slug);
+
+      const pill = needsBlake
+        ? `<span class="status-pill status-awaiting">Awaiting you</span>`
+        : `<span class="status-pill status-${statusKey}">${escapeHtml(c.status || 'active')}</span>`;
+
+      const titleHtml = needsBlake
+        ? `<div class="card-title"><span class="warn-icon" aria-hidden="true">&#9888;</span>${escapeHtml(c.name || slug)}</div>`
+        : `<div class="card-title">${escapeHtml(c.name || slug)}</div>`;
+
+      const body = needsBlake
+        ? `
+          <div class="card-task-text">${escapeHtml(c.blake_task || 'Awaiting your review.')}</div>
+          <div class="card-actions">
+            <button class="btn" data-action="brief" data-slug="${escapeAttr(slug)}" type="button">View Brief</button>
+            <button class="btn btn-primary" data-action="approve" data-slug="${escapeAttr(slug)}" type="button">Approve</button>
+            <button class="btn btn-danger" data-action="changes" data-slug="${escapeAttr(slug)}" type="button">Request Changes</button>
+          </div>
+        `
+        : `
+          <div class="progress-row">
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="progress-label">Stage ${stage} of ${STAGE_COUNT}</div>
+          </div>
+          <div class="stage-dots" aria-hidden="true">${renderStageDots(stage)}</div>
+          <div class="card-agent-line">
+            <span>${escapeHtml(c.current_agent || '—')}</span>
+            <span class="muted"> · ${escapeHtml(c.stage_name || '')}</span>
+          </div>
+          <div class="card-meta">
+            Started ${formatRelative(c.created_at)} · ${fmtMoney(c.cost_usd_total)} used
+          </div>
+        `;
+
+      const expandedHtml = expanded ? renderExpandedActivity(slug) : '';
+
+      return `
+        <article class="campaign-card${needsBlake ? ' needs-blake' : ''}"
+                 data-card-slug="${escapeAttr(slug)}"
+                 tabindex="0"
+                 role="button"
+                 aria-expanded="${expanded}"
+                 aria-label="${escapeAttr(c.name || slug)}">
+          <div class="card-top">
+            ${titleHtml}
+            ${pill}
+          </div>
+          ${body}
+          ${expandedHtml}
+        </article>
+      `;
+    }
+
+    function renderExpandedActivity(slug) {
+      const rows = state.activity.filter(a => a.app_slug === slug).slice(0, 15);
+      if (rows.length === 0) {
+        return `<div class="card-expanded"><h4>Recent activity</h4><div style="font-size:12px;color:var(--text-muted)">No activity yet.</div></div>`;
+      }
+      const rowsHtml = rows.map(r => `
+        <div class="expanded-log-row">
+          <span class="expanded-log-time">${formatTime(r.created_at)}</span>
+          <span class="expanded-log-agent">${escapeHtml(r.agent_name || '—')}</span>
+          <span class="expanded-log-action">${escapeHtml(r.action || '')}</span>
+        </div>
+      `).join('');
+      return `<div class="card-expanded"><h4>Recent activity</h4>${rowsHtml}</div>`;
+    }
+
+    // ============ ACTIVITY RENDER ============
+    function agentDotColor(name) {
+      const n = (name || '').toLowerCase();
+      if (n.includes('oscar')) return 'var(--accent)';
+      if (n.includes('psychology')) return 'var(--green)';
+      if (n.includes('visual') && n.includes('research')) return 'var(--amber)';
+      if (n.includes('orchestrator')) return 'var(--text-muted)';
+      return 'var(--accent)';
+    }
+
+    function renderActivity() {
+      const container = document.getElementById('activity-content');
+      if (state.activity.length === 0) {
+        container.innerHTML = `<div class="empty-state">No activity yet. Agents will write here as they work.</div>`;
+        return;
+      }
+      container.innerHTML = state.activity.map(r => `
+        <div class="activity-row">
+          <span class="activity-dot" style="background:${agentDotColor(r.agent_name)}"></span>
+          <span class="activity-time">${formatTime(r.created_at)}</span>
+          <span class="activity-agent">${escapeHtml(r.agent_name || '—')}</span>
+          <span class="activity-action">${escapeHtml(r.action || '')}</span>
+        </div>
+      `).join('');
+    }
+
+    // ============ COSTS RENDER ============
+    async function renderCosts() {
+      const container = document.getElementById('costs-content');
+      if (!container.innerHTML) {
+        container.innerHTML = `<div style="color:var(--text-muted);font-size:13px">Loading…</div>`;
+      }
+
+      const now = Date.now();
+      const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      let weekRows = [];
+      let monthRows = [];
+      try {
+        const [{ data: weekData, error: e1 }, { data: monthData, error: e2 }] = await Promise.all([
+          supabase.from('activity_log').select('app_slug, agent_name, cost_usd, created_at').gte('created_at', weekAgo),
+          supabase.from('activity_log').select('cost_usd, created_at').gte('created_at', monthAgo),
+        ]);
+        if (e1) throw e1;
+        if (e2) throw e2;
+        weekRows = weekData || [];
+        monthRows = monthData || [];
+        showError(false);
+      } catch (err) {
+        console.error('Costs load failed:', err);
+        showError(true);
+        container.innerHTML = `<div class="empty-state">Could not load costs. Retrying…</div>`;
+        return;
+      }
+
+      const byApp = new Map();
+      const byAgent = new Map();
+      let weekTotal = 0;
+      for (const r of weekRows) {
+        const cost = Number(r.cost_usd) || 0;
+        weekTotal += cost;
+        byApp.set(r.app_slug, (byApp.get(r.app_slug) || 0) + cost);
+        byAgent.set(r.agent_name || '—', (byAgent.get(r.agent_name || '—') || 0) + cost);
+      }
+      let monthTotal = 0;
+      for (const r of monthRows) monthTotal += Number(r.cost_usd) || 0;
+
+      const campaignNameBySlug = new Map(state.campaigns.map(c => [c.slug, c.name || c.slug]));
+      const appEntries = [...byApp.entries()].sort((a, b) => b[1] - a[1]);
+
+      let weekHtml;
+      if (appEntries.length === 0) {
+        weekHtml = `<div class="empty-state">No activity in the last 7 days.</div>`;
+      } else {
+        weekHtml = appEntries.map(([slug, cost]) => {
+          const pct = Math.min(cost / 100, 1) * 100;
+          const over = cost > 100;
+          return `
+            <div class="cost-row">
+              <div class="cost-row-name">${escapeHtml(campaignNameBySlug.get(slug) || slug)}</div>
+              <div class="cost-row-amount">${fmtMoney(cost)}</div>
+              <div class="cost-bar"><div class="cost-bar-fill${over ? ' over' : ''}" style="width:${pct}%"></div></div>
+              <div class="cost-row-cap">$100 cap</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      const agentEntries = [...byAgent.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const breakdownHtml = agentEntries.length === 0
+        ? `<div class="empty-state">No agent activity yet.</div>`
+        : agentEntries.map(([agent, cost]) => {
+            const pct = weekTotal > 0 ? Math.round((cost / weekTotal) * 100) : 0;
+            return `
+              <div class="breakdown-row">
+                <div class="breakdown-name">${escapeHtml(agent)}</div>
+                <div class="breakdown-amount">${fmtMoney(cost)}</div>
+                <div class="breakdown-pct">${pct}%</div>
+              </div>
+            `;
+          }).join('');
+
+      container.innerHTML = `
+        <div class="cost-section">
+          <h3>This Week</h3>
+          ${weekHtml}
+          <div class="cost-totals">
+            <div class="cost-total-item">
+              <div class="cost-total-label">Week total</div>
+              <div class="cost-total-value">${fmtMoney(weekTotal)}</div>
+            </div>
+            <div class="cost-total-item">
+              <div class="cost-total-label">Month total</div>
+              <div class="cost-total-value">${fmtMoney(monthTotal)}</div>
+            </div>
+          </div>
+        </div>
+        <div class="cost-section">
+          <h3>Breakdown by Agent</h3>
+          ${breakdownHtml}
+        </div>
+      `;
+    }
+
+    // ============ APPS RENDER ============
+    function renderApps() {
+      const container = document.getElementById('apps-content');
+      if (state.campaigns.length === 0) {
+        container.innerHTML = `<div class="empty-state">No campaigns yet.</div>`;
+        return;
+      }
+
+      const { column, dir } = state.appsSort;
+      const sorted = [...state.campaigns].sort((a, b) => {
+        let va = a[column];
+        let vb = b[column];
+        if (column === 'cost_usd_total' || column === 'stage') {
+          va = Number(va) || 0;
+          vb = Number(vb) || 0;
+        } else if (column === 'created_at') {
+          va = new Date(va || 0).getTime();
+          vb = new Date(vb || 0).getTime();
+        } else {
+          va = (va || '').toString().toLowerCase();
+          vb = (vb || '').toString().toLowerCase();
+        }
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      const indicator = (col) => column === col ? `<span class="sort-indicator">${dir === 'asc' ? '▲' : '▼'}</span>` : '';
+
+      const rows = sorted.map(c => `
+        <tr>
+          <td>${escapeHtml(c.name || c.slug)}</td>
+          <td><span class="status-pill status-${escapeAttr((c.status || 'active').toLowerCase())}">${escapeHtml(c.status || 'active')}</span></td>
+          <td class="muted">${Number(c.stage) || 0}/${STAGE_COUNT}</td>
+          <td>${fmtMoney(c.cost_usd_total)}</td>
+          <td class="muted">${formatShortDate(c.created_at)}</td>
+        </tr>
+      `).join('');
+
+      container.innerHTML = `
+        <table class="apps-table">
+          <thead>
+            <tr>
+              <th data-col="name" tabindex="0">Name${indicator('name')}</th>
+              <th data-col="status" tabindex="0">Status${indicator('status')}</th>
+              <th data-col="stage" tabindex="0">Stage${indicator('stage')}</th>
+              <th data-col="cost_usd_total" tabindex="0">Cost${indicator('cost_usd_total')}</th>
+              <th data-col="created_at" tabindex="0">Date${indicator('created_at')}</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+
+      container.querySelectorAll('th[data-col]').forEach(th => {
+        const trigger = () => {
+          const col = th.dataset.col;
+          if (state.appsSort.column === col) {
+            state.appsSort.dir = state.appsSort.dir === 'asc' ? 'desc' : 'asc';
+          } else {
+            state.appsSort.column = col;
+            state.appsSort.dir = 'asc';
+          }
+          renderApps();
+        };
+        th.addEventListener('click', trigger);
+        th.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger(); }
+        });
+      });
+    }
+
+    // ============ APPROVALS ============
+    async function handleApproval(slug, status) {
+      const campaign = state.campaigns.find(c => c.slug === slug);
+      if (!campaign) return;
+      const approvalType = campaign.blake_task_type || 'manual';
+      try {
+        const { error: insErr } = await supabase.from('approvals').insert({
+          app_slug: slug,
+          approval_type: approvalType,
+          title: campaign.blake_task || null,
+          content: null,
+          status,
+        });
+        if (insErr) throw insErr;
+        const { error: updErr } = await supabase
+          .from('campaigns')
+          .update({ needs_blake: false })
+          .eq('slug', slug);
+        if (updErr) throw updErr;
+        campaign.needs_blake = false;
+        updateNeedsBadge();
+        renderPipeline();
+      } catch (err) {
+        console.error('Approval failed:', err);
+        showError(true);
+        setTimeout(() => showError(false), 4000);
+      }
+    }
+
+    // ============ MODAL ============
+    async function openBriefModal(slug) {
+      const campaign = state.campaigns.find(c => c.slug === slug);
+      if (!campaign) return;
+      const titleEl = document.getElementById('modal-title');
+      const bodyEl = document.getElementById('modal-body');
+      titleEl.textContent = campaign.name || slug;
+      bodyEl.innerHTML = `<p style="color:var(--text-muted)">Loading…</p>`;
+      document.getElementById('modal-backdrop').classList.add('open');
+
+      try {
+        const { data, error } = await supabase
+          .from('approvals')
+          .select('*')
+          .eq('app_slug', slug)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (error) throw error;
+
+        if (data && data.length > 0 && data[0].content) {
+          const approval = data[0];
+          const pretty = typeof approval.content === 'string'
+            ? approval.content
+            : JSON.stringify(approval.content, null, 2);
+          bodyEl.innerHTML = `
+            ${approval.title ? `<p style="margin-bottom:12px;font-weight:600">${escapeHtml(approval.title)}</p>` : ''}
+            <pre>${escapeHtml(pretty)}</pre>
+          `;
+        } else {
+          bodyEl.innerHTML = `<p>${escapeHtml(campaign.blake_task || 'No brief content available.')}</p>`;
+        }
+      } catch (err) {
+        console.error('Brief load failed:', err);
+        bodyEl.innerHTML = `<p style="color:var(--red)">Could not load brief.</p>`;
+      }
+    }
+
+    document.getElementById('modal-close').addEventListener('click', () => {
+      document.getElementById('modal-backdrop').classList.remove('open');
+    });
+    document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+      if (e.target.id === 'modal-backdrop') e.currentTarget.classList.remove('open');
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') document.getElementById('modal-backdrop').classList.remove('open');
+    });
+
+    // ============ INIT ============
+    document.getElementById('current-date').textContent = formatHeaderDate(new Date());
+    routeFromHash();
+    bootstrap();
+  </script>
 </body>
 </html>
