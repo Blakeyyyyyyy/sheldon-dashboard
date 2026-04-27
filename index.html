@@ -865,6 +865,10 @@
     const TABS = ['pipeline', 'activity', 'costs', 'apps'];
     const STAGE_COUNT = 10;
 
+    // App lifecycle stages (Apps tab uses these instead of pipeline stage numbers)
+    const APP_STAGES = ['IDEA', 'Building', 'Device Testing', 'Waiting for Review', 'Resubmitted & Waiting', 'APPROVED', 'LIVE'];
+    const APP_STAGE_COUNT = APP_STAGES.length;
+
     const state = {
       campaigns: [],
       activity: [],
@@ -1303,31 +1307,40 @@
     // ============ APPS RENDER ============
     const APP_META = {
       'groove-ai': {
-        emoji: '🎵',
+        logo: 'assets/groove-ai-icon.png',
         gradient: 'linear-gradient(135deg, #7E55A0, #5A3674)',
         accent: '#9b72c0',
         tagline: 'AI Dance Video Generator',
         platform: 'iOS',
         category: 'Entertainment',
         description: 'Upload a photo, pick a dance style, get a shareable AI dance video in minutes.',
+        stage: 'Device Testing',
+        competitors: 'Dance AI, AI Video',
       },
       'glow-ai': {
+        logo: null,
         emoji: '✨',
-        gradient: 'linear-gradient(135deg, #f97316, #ec4899)',
-        accent: '#f97316',
-        tagline: 'AI Skin & Beauty Analysis',
+        gradient: 'linear-gradient(135deg, #a855f7, #ec4899)',
+        accent: '#a855f7',
+        tagline: 'AI Photo Edits & Viral Pranks',
         platform: 'iOS',
-        category: 'Health & Beauty',
-        description: 'Personalized skincare recommendations powered by AI photo analysis.',
+        category: 'Entertainment',
+        description: 'Upload a photo + type a prompt → AI edits the image → shareable viral content. Pranks, glow ups, celebrity edits, viral moments.',
+        stage: 'Resubmitted & Waiting',
+        paywall: '$99/yr · 3-day trial',
+        competitors: 'Halo AI ($200k/mo), Pixi AI ($67k/mo)',
+        distribution: 'Instagram Reels → TikTok · Creator Program ($1.50/1k views)',
+        note: 'Waiting on Apple Developer account approval',
       },
     };
 
-    function renderAppStageDots(stage) {
-      const current = Math.min(Math.max(Number(stage) || 0, 0), STAGE_COUNT);
+    function renderAppStageDots(stageName) {
+      const idx = APP_STAGES.indexOf(stageName);
+      const current = idx >= 0 ? idx + 1 : 0;
       let html = '';
-      for (let i = 1; i <= STAGE_COUNT; i++) {
+      for (let i = 1; i <= APP_STAGE_COUNT; i++) {
         html += `<span class="app-stage-dot${i <= current ? ' filled' : ''}"></span>`;
-        if (i < STAGE_COUNT) html += `<span class="app-stage-line${i < current ? ' filled' : ''}"></span>`;
+        if (i < APP_STAGE_COUNT) html += `<span class="app-stage-line${i < current ? ' filled' : ''}"></span>`;
       }
       return html;
     }
@@ -1339,54 +1352,75 @@
         return;
       }
 
+      const stageOrder = Object.fromEntries(APP_STAGES.map((s, i) => [s, i]));
       const sorted = [...state.campaigns].sort((a, b) => {
-        const order = { in_progress: 0, active: 1, blocked: 2, paused: 3, queued: 4, done: 5 };
-        return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+        const meta_a = APP_META[a.slug];
+        const meta_b = APP_META[b.slug];
+        const sa = stageOrder[meta_a?.stage ?? a.stage_name] ?? 99;
+        const sb = stageOrder[meta_b?.stage ?? b.stage_name] ?? 99;
+        return sb - sa; // furthest along first
       });
 
       const cards = sorted.map(c => {
         const meta = APP_META[c.slug] || {
-          emoji: '📱',
+          logo: null, emoji: '📱',
           gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
           accent: '#818cf8',
-          tagline: '',
-          platform: 'iOS',
-          category: 'Consumer AI',
-          description: '',
+          tagline: '', platform: 'iOS', category: 'Consumer AI', description: '',
         };
-        const stage = Number(c.stage) || 0;
-        const pct = Math.min(100, (stage / STAGE_COUNT) * 100);
-        const statusKey = (c.status || 'active').toLowerCase().replace('_', '-');
+        const stageName = meta.stage || c.stage_name || 'IDEA';
+        const stageIdx = APP_STAGES.indexOf(stageName);
+        const stageNum = stageIdx >= 0 ? stageIdx + 1 : 1;
+        const pct = Math.min(100, (stageNum / APP_STAGE_COUNT) * 100);
+        const isLive = stageName === 'LIVE';
+        const isApproved = stageName === 'APPROVED';
+        const statusKey = isLive ? 'done' : isApproved ? 'done' : (c.status || 'active').toLowerCase().replace('_', '-');
+        const statusLabel = isLive ? 'LIVE' : isApproved ? 'APPROVED' : (c.status || 'active');
+
+        const logoHtml = meta.logo
+          ? `<img src="${escapeAttr(meta.logo)}" alt="${escapeAttr(c.name)} icon" style="width:56px;height:56px;border-radius:14px;object-fit:cover;box-shadow:0 4px 12px rgba(0,0,0,0.3)">`
+          : `<div class="app-logo" style="background:${meta.gradient}">${meta.emoji || '📱'}</div>`;
+
+        const extras = [];
+        if (meta.paywall) extras.push(`<div class="app-meta-item"><span class="app-meta-label">Paywall</span><span class="app-meta-value">${escapeHtml(meta.paywall)}</span></div>`);
+        if (meta.distribution) extras.push(`<div class="app-meta-item" style="grid-column:span 2"><span class="app-meta-label">Distribution</span><span class="app-meta-value">${escapeHtml(meta.distribution)}</span></div>`);
+        if (meta.competitors) extras.push(`<div class="app-meta-item" style="grid-column:span 2"><span class="app-meta-label">Competitors</span><span class="app-meta-value">${escapeHtml(meta.competitors)}</span></div>`);
+
+        const noteHtml = meta.note ? `<div style="margin-bottom:16px;padding:10px 14px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:8px;font-size:12px;color:var(--amber)">⚠ ${escapeHtml(meta.note)}</div>` : '';
 
         return `
-          <div class="app-card" style="--app-accent:${meta.accent};--app-gradient:${meta.gradient}">
+          <div class="app-card" style="--app-accent:${meta.accent}">
             <div class="app-card-header">
-              <div class="app-logo" style="background:${meta.gradient}">${meta.emoji}</div>
+              ${logoHtml}
               <div class="app-header-text">
                 <div class="app-name">${escapeHtml(c.name || c.slug)}</div>
                 <div class="app-tagline">${escapeHtml(meta.tagline)}</div>
                 <div class="app-tags">
-                  <span class="status-pill status-${escapeAttr(statusKey)}">${escapeHtml(c.status || 'active')}</span>
+                  <span class="status-pill status-${escapeAttr(statusKey)}">${escapeHtml(statusLabel)}</span>
                   <span class="app-tag">${escapeHtml(meta.platform)}</span>
                   <span class="app-tag">${escapeHtml(meta.category)}</span>
                 </div>
               </div>
             </div>
 
-            ${meta.description ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">${escapeHtml(meta.description)}</div>` : ''}
+            ${meta.description ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.6">${escapeHtml(meta.description)}</div>` : ''}
+            ${noteHtml}
 
             <div class="app-stage-section">
               <div class="app-stage-label">
-                <span class="app-stage-name">${escapeHtml(c.stage_name || 'Pipeline')}</span>
-                <span class="app-stage-count">Stage ${stage} of ${STAGE_COUNT}</span>
+                <span class="app-stage-name" style="color:var(--app-accent)">${escapeHtml(stageName)}</span>
+                <span class="app-stage-count">${stageNum} of ${APP_STAGE_COUNT}</span>
               </div>
               <div class="app-progress-bar">
-                <div class="app-progress-fill" style="width:${pct}%"></div>
+                <div class="app-progress-fill" style="width:${pct}%;background:${meta.accent}"></div>
               </div>
-              <div class="app-stage-dots">${renderAppStageDots(stage)}</div>
+              <div class="app-stage-dots" style="margin-bottom:8px">${renderAppStageDots(stageName)}</div>
+              <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);letter-spacing:0.03em">
+                ${APP_STAGES.map(s => `<span style="flex:1;text-align:center;${s===stageName?'color:var(--app-accent);font-weight:600':''}">${s === 'Resubmitted & Waiting' ? 'Resubmit' : s === 'Waiting for Review' ? 'In Review' : s}</span>`).join('')}
+              </div>
             </div>
 
-            <div class="app-meta-row">
+            <div class="app-meta-row" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px 24px">
               <div class="app-meta-item">
                 <span class="app-meta-label">Cost</span>
                 <span class="app-meta-value">${fmtMoney(c.cost_usd_total)}</span>
@@ -1396,13 +1430,10 @@
                 <span class="app-meta-value">${formatShortDate(c.created_at)}</span>
               </div>
               <div class="app-meta-item">
-                <span class="app-meta-label">Agent</span>
-                <span class="app-meta-value">${escapeHtml(c.current_agent || '—')}</span>
-              </div>
-              <div class="app-meta-item">
                 <span class="app-meta-label">Updated</span>
                 <span class="app-meta-value">${formatRelative(c.updated_at)}</span>
               </div>
+              ${extras.join('')}
             </div>
           </div>
         `;
