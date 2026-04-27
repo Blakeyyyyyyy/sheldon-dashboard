@@ -481,34 +481,171 @@
     .breakdown-pct { font-size: 13px; color: var(--text-muted); text-align: right; }
 
     /* ============ APPS TAB ============ */
-    .apps-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
+    .apps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 20px;
     }
 
-    .apps-table th {
-      text-align: left;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+    .app-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 150ms ease;
+    }
+
+    .app-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--app-accent, var(--accent));
+      border-radius: 16px 16px 0 0;
+    }
+
+    .app-card:hover { border-color: rgba(255,255,255,0.1); }
+
+    .app-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .app-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      background: var(--app-gradient, linear-gradient(135deg, #818cf8, #6366f1));
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .app-header-text { flex: 1; min-width: 0; }
+
+    .app-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .app-tagline {
+      font-size: 13px;
       color: var(--text-muted);
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer;
-      user-select: none;
+      margin-bottom: 8px;
     }
-    .apps-table th:hover { color: var(--text); }
-    .apps-table th .sort-indicator { margin-left: 4px; color: var(--accent); }
 
-    .apps-table td {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
+    .app-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .app-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      letter-spacing: 0.02em;
+    }
+
+    .app-stage-section { margin-bottom: 16px; }
+
+    .app-stage-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .app-stage-name {
+      font-size: 12px;
+      font-weight: 600;
       color: var(--text);
     }
 
-    .apps-table td.muted { color: var(--text-muted); }
+    .app-stage-count {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .app-progress-bar {
+      height: 6px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .app-progress-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--app-accent, var(--accent));
+      transition: width 300ms ease;
+    }
+
+    .app-stage-dots {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .app-stage-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      flex-shrink: 0;
+    }
+    .app-stage-dot.filled { background: var(--app-accent, var(--accent)); }
+    .app-stage-line { flex: 1; height: 1px; background: var(--surface-2); }
+    .app-stage-line.filled { background: var(--app-accent, var(--accent)); }
+
+    .app-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      margin-top: 4px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .app-meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .app-meta-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .app-meta-value {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      .apps-grid { grid-template-columns: 1fr; }
+    }
 
     /* ============ MODAL ============ */
     .modal-backdrop {
@@ -1164,75 +1301,114 @@
     }
 
     // ============ APPS RENDER ============
+    const APP_META = {
+      'groove-ai': {
+        emoji: '🎵',
+        gradient: 'linear-gradient(135deg, #7E55A0, #5A3674)',
+        accent: '#9b72c0',
+        tagline: 'AI Dance Video Generator',
+        platform: 'iOS',
+        category: 'Entertainment',
+        description: 'Upload a photo, pick a dance style, get a shareable AI dance video in minutes.',
+      },
+      'glow-ai': {
+        emoji: '✨',
+        gradient: 'linear-gradient(135deg, #f97316, #ec4899)',
+        accent: '#f97316',
+        tagline: 'AI Skin & Beauty Analysis',
+        platform: 'iOS',
+        category: 'Health & Beauty',
+        description: 'Personalized skincare recommendations powered by AI photo analysis.',
+      },
+    };
+
+    function renderAppStageDots(stage) {
+      const current = Math.min(Math.max(Number(stage) || 0, 0), STAGE_COUNT);
+      let html = '';
+      for (let i = 1; i <= STAGE_COUNT; i++) {
+        html += `<span class="app-stage-dot${i <= current ? ' filled' : ''}"></span>`;
+        if (i < STAGE_COUNT) html += `<span class="app-stage-line${i < current ? ' filled' : ''}"></span>`;
+      }
+      return html;
+    }
+
     function renderApps() {
       const container = document.getElementById('apps-content');
       if (state.campaigns.length === 0) {
-        container.innerHTML = `<div class="empty-state">No campaigns yet.</div>`;
+        container.innerHTML = `<div class="empty-state">No apps yet.</div>`;
         return;
       }
 
-      const { column, dir } = state.appsSort;
       const sorted = [...state.campaigns].sort((a, b) => {
-        let va = a[column];
-        let vb = b[column];
-        if (column === 'cost_usd_total' || column === 'stage') {
-          va = Number(va) || 0;
-          vb = Number(vb) || 0;
-        } else if (column === 'created_at') {
-          va = new Date(va || 0).getTime();
-          vb = new Date(vb || 0).getTime();
-        } else {
-          va = (va || '').toString().toLowerCase();
-          vb = (vb || '').toString().toLowerCase();
-        }
-        if (va < vb) return dir === 'asc' ? -1 : 1;
-        if (va > vb) return dir === 'asc' ? 1 : -1;
-        return 0;
+        const order = { in_progress: 0, active: 1, blocked: 2, paused: 3, queued: 4, done: 5 };
+        return (order[a.status] ?? 9) - (order[b.status] ?? 9);
       });
 
-      const indicator = (col) => column === col ? `<span class="sort-indicator">${dir === 'asc' ? '▲' : '▼'}</span>` : '';
-
-      const rows = sorted.map(c => `
-        <tr>
-          <td>${escapeHtml(c.name || c.slug)}</td>
-          <td><span class="status-pill status-${escapeAttr((c.status || 'active').toLowerCase())}">${escapeHtml(c.status || 'active')}</span></td>
-          <td class="muted">${Number(c.stage) || 0}/${STAGE_COUNT}</td>
-          <td>${fmtMoney(c.cost_usd_total)}</td>
-          <td class="muted">${formatShortDate(c.created_at)}</td>
-        </tr>
-      `).join('');
-
-      container.innerHTML = `
-        <table class="apps-table">
-          <thead>
-            <tr>
-              <th data-col="name" tabindex="0">Name${indicator('name')}</th>
-              <th data-col="status" tabindex="0">Status${indicator('status')}</th>
-              <th data-col="stage" tabindex="0">Stage${indicator('stage')}</th>
-              <th data-col="cost_usd_total" tabindex="0">Cost${indicator('cost_usd_total')}</th>
-              <th data-col="created_at" tabindex="0">Date${indicator('created_at')}</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-
-      container.querySelectorAll('th[data-col]').forEach(th => {
-        const trigger = () => {
-          const col = th.dataset.col;
-          if (state.appsSort.column === col) {
-            state.appsSort.dir = state.appsSort.dir === 'asc' ? 'desc' : 'asc';
-          } else {
-            state.appsSort.column = col;
-            state.appsSort.dir = 'asc';
-          }
-          renderApps();
+      const cards = sorted.map(c => {
+        const meta = APP_META[c.slug] || {
+          emoji: '📱',
+          gradient: 'linear-gradient(135deg, #818cf8, #6366f1)',
+          accent: '#818cf8',
+          tagline: '',
+          platform: 'iOS',
+          category: 'Consumer AI',
+          description: '',
         };
-        th.addEventListener('click', trigger);
-        th.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger(); }
-        });
-      });
+        const stage = Number(c.stage) || 0;
+        const pct = Math.min(100, (stage / STAGE_COUNT) * 100);
+        const statusKey = (c.status || 'active').toLowerCase().replace('_', '-');
+
+        return `
+          <div class="app-card" style="--app-accent:${meta.accent};--app-gradient:${meta.gradient}">
+            <div class="app-card-header">
+              <div class="app-logo" style="background:${meta.gradient}">${meta.emoji}</div>
+              <div class="app-header-text">
+                <div class="app-name">${escapeHtml(c.name || c.slug)}</div>
+                <div class="app-tagline">${escapeHtml(meta.tagline)}</div>
+                <div class="app-tags">
+                  <span class="status-pill status-${escapeAttr(statusKey)}">${escapeHtml(c.status || 'active')}</span>
+                  <span class="app-tag">${escapeHtml(meta.platform)}</span>
+                  <span class="app-tag">${escapeHtml(meta.category)}</span>
+                </div>
+              </div>
+            </div>
+
+            ${meta.description ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:18px;line-height:1.6">${escapeHtml(meta.description)}</div>` : ''}
+
+            <div class="app-stage-section">
+              <div class="app-stage-label">
+                <span class="app-stage-name">${escapeHtml(c.stage_name || 'Pipeline')}</span>
+                <span class="app-stage-count">Stage ${stage} of ${STAGE_COUNT}</span>
+              </div>
+              <div class="app-progress-bar">
+                <div class="app-progress-fill" style="width:${pct}%"></div>
+              </div>
+              <div class="app-stage-dots">${renderAppStageDots(stage)}</div>
+            </div>
+
+            <div class="app-meta-row">
+              <div class="app-meta-item">
+                <span class="app-meta-label">Cost</span>
+                <span class="app-meta-value">${fmtMoney(c.cost_usd_total)}</span>
+              </div>
+              <div class="app-meta-item">
+                <span class="app-meta-label">Started</span>
+                <span class="app-meta-value">${formatShortDate(c.created_at)}</span>
+              </div>
+              <div class="app-meta-item">
+                <span class="app-meta-label">Agent</span>
+                <span class="app-meta-value">${escapeHtml(c.current_agent || '—')}</span>
+              </div>
+              <div class="app-meta-item">
+                <span class="app-meta-label">Updated</span>
+                <span class="app-meta-value">${formatRelative(c.updated_at)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.innerHTML = `<div class="apps-grid">${cards}</div>`;
     }
 
     // ============ APPROVALS ============
