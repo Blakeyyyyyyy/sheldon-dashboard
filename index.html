@@ -581,6 +581,28 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .stage-select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--app-accent, var(--accent));
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 5px 28px 5px 10px;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color 120ms ease;
+      max-width: 200px;
+    }
+    .stage-select:hover { border-color: var(--app-accent, var(--accent)); }
+    .stage-select:focus { outline: 2px solid var(--app-accent, var(--accent)); outline-offset: 2px; }
+    .stage-select option { background: #18181b; color: #fafafa; }
+
     .app-progress-bar {
       height: 6px;
       background: var(--surface-2);
@@ -1334,6 +1356,35 @@
       },
     };
 
+    async function handleStageChange(slug, stageName) {
+      const stageIdx = APP_STAGES.indexOf(stageName);
+      const stageNum = stageIdx >= 0 ? stageIdx + 1 : 1;
+
+      // Update local state immediately so UI feels instant
+      const campaign = state.campaigns.find(c => c.slug === slug);
+      if (campaign) {
+        campaign.stage = stageNum;
+        campaign.stage_name = stageName;
+        campaign.updated_at = new Date().toISOString();
+      }
+      if (APP_META[slug]) APP_META[slug].stage = stageName;
+
+      renderApps();
+
+      // Persist to Supabase
+      const { error } = await supabase.from('campaigns').update({
+        stage: stageNum,
+        stage_name: stageName,
+        updated_at: new Date().toISOString(),
+      }).eq('slug', slug);
+
+      if (error) {
+        console.error('Stage update failed:', error);
+        showError(true);
+        setTimeout(() => showError(false), 4000);
+      }
+    }
+
     function renderAppStageDots(stageName) {
       const idx = APP_STAGES.indexOf(stageName);
       const current = idx >= 0 ? idx + 1 : 0;
@@ -1408,7 +1459,9 @@
 
             <div class="app-stage-section">
               <div class="app-stage-label">
-                <span class="app-stage-name" style="color:var(--app-accent)">${escapeHtml(stageName)}</span>
+                <select class="stage-select" data-slug="${escapeAttr(c.slug)}" style="--app-accent:${meta.accent}">
+                  ${APP_STAGES.map(s => `<option value="${escapeAttr(s)}"${s === stageName ? ' selected' : ''}>${escapeHtml(s)}</option>`).join('')}
+                </select>
                 <span class="app-stage-count">${stageNum} of ${APP_STAGE_COUNT}</span>
               </div>
               <div class="app-progress-bar">
@@ -1440,6 +1493,10 @@
       }).join('');
 
       container.innerHTML = `<div class="apps-grid">${cards}</div>`;
+
+      container.querySelectorAll('.stage-select').forEach(sel => {
+        sel.addEventListener('change', () => handleStageChange(sel.dataset.slug, sel.value));
+      });
     }
 
     // ============ APPROVALS ============
